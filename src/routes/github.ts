@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { execSync } from 'child_process';
+import shellescape from 'shell-escape';
 
 const router = Router();
 
@@ -47,9 +48,13 @@ router.get('/:owner/:repo/issues', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Owner and repo are required' });
     }
     
+    // Sanitize owner and repo parameters to prevent command injection
+    const safeOwner = shellescape([owner]);
+    const safeRepo = shellescape([repo]);
+    
     // Execute gh issue list command
     const issues = executeGHCommand(
-      `gh issue list --repo ${owner}/${repo} --json number,title,state,createdAt,updatedAt,assignees,labels,url`
+      `gh issue list --repo ${safeOwner}/${safeRepo} --json number,title,state,createdAt,updatedAt,assignees,labels,url`
     );
     
     res.json(issues);
@@ -69,9 +74,13 @@ router.get('/:owner/:repo/pulls', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Owner and repo are required' });
     }
     
+    // Sanitize owner and repo parameters to prevent command injection
+    const safeOwner = shellescape([owner]);
+    const safeRepo = shellescape([repo]);
+    
     // Execute gh pr list command
     const pulls = executeGHCommand(
-      `gh pr list --repo ${owner}/${repo} --json number,title,state,createdAt,updatedAt,author,labels,url`
+      `gh pr list --repo ${safeOwner}/${safeRepo} --json number,title,state,createdAt,updatedAt,author,labels,url`
     );
     
     res.json(pulls);

@@ -1,5 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import shellescape from 'shell-escape';
 import { HealthResponse, Session, Agent } from '../types';
 
 const execPromise = promisify(exec);
@@ -89,8 +90,11 @@ export async function listSessions(): Promise<Session[]> {
  */
 export async function killSession(key: string): Promise<any> {
   try {
+    // Sanitize the key parameter to prevent command injection
+    const safeKey = shellescape([key]);
+    
     // Execute the openclaw sessions kill command
-    const { stdout, stderr } = await execPromise(`openclaw sessions kill ${key}`);
+    const { stdout, stderr } = await execPromise(`openclaw sessions kill ${safeKey}`);
     
     if (stderr) {
       throw new Error(`Kill session command error: ${stderr}`);
@@ -163,8 +167,12 @@ export async function listAgents(): Promise<Agent[]> {
  */
 export async function spawnAgent(agentId: string, task: string): Promise<{sessionKey: string}> {
   try {
+    // Sanitize the agentId and task parameters to prevent command injection
+    const safeAgentId = shellescape([agentId]);
+    const safeTask = shellescape([task]);
+    
     // Execute the openclaw agent command with JSON output
-    const { stdout, stderr } = await execPromise(`openclaw agent --agent ${agentId} --message "${task}" --json`);
+    const { stdout, stderr } = await execPromise(`openclaw agent --agent ${safeAgentId} --message ${safeTask} --json`);
     
     if (stderr) {
       throw new Error(`Spawn agent command error: ${stderr}`);
@@ -201,6 +209,9 @@ export async function spawnAgent(agentId: string, task: string): Promise<{sessio
  */
 export async function killAgent(agentId: string): Promise<void> {
   try {
+    // Sanitize the agentId parameter to prevent command injection
+    const safeAgentId = shellescape([agentId]);
+    
     // Execute the openclaw sessions list command to get all sessions
     const { stdout, stderr } = await execPromise('openclaw sessions --json');
     
@@ -213,13 +224,15 @@ export async function killAgent(agentId: string): Promise<void> {
     
     // Find sessions that belong to the specified agent
     const agentSessions = sessionsData.sessions.filter((session: any) => 
-      session.key.startsWith(`agent:${agentId}:`)
+      session.key.startsWith(`agent:${safeAgentId}:`)
     );
     
     // Kill each session for the agent
     for (const session of agentSessions) {
       try {
-        await execPromise(`openclaw sessions kill ${session.key}`);
+        // Sanitize the session key
+        const safeSessionKey = shellescape([session.key]);
+        await execPromise(`openclaw sessions kill ${safeSessionKey}`);
       } catch (error) {
         // Log error but continue with other sessions
         console.warn(`Failed to kill session ${session.key}:`, error);
