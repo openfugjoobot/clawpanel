@@ -12,7 +12,8 @@ import {
   Loader2,
   LogOut,
   ArrowRight,
-  Github
+  Github,
+  FolderOpen
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '../components/ui/Card';

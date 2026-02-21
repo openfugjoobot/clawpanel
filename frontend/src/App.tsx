@@ -7,6 +7,7 @@ import { Sessions } from './pages/Sessions';
 import { Agents } from './pages/Agents';
 import { Cron } from './pages/Cron';
 import { GitHub } from './pages/GitHub';
+import { Workspace } from './pages/Workspace';
 
 function App() {
   return (
@@ -62,6 +63,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <GitHub />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Workspace route - protected */}
+          <Route 
+            path="/workspace" 
+            element={
+              <ProtectedRoute>
+                <Workspace />
               </ProtectedRoute>
             } 
           />
