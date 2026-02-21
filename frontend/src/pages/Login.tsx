@@ -179,6 +179,12 @@ export const Login: React.FC = () => {
             </form>
           </div>
 
+          {/* Footer */}
+          <div className="bg-gray-50 px-8 py-4 border-t border-gray-200">
+            <p className="text-xs text-center text-gray-500">
+              Contact your administrator for access</p>
+          </div>
+
           {/* Version */}
           <p className="text-center text-xs text-gray-400 mt-6">
             ClawPanel v1.0.0
