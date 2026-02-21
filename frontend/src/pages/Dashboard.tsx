@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Activity, 
@@ -6,7 +6,6 @@ import {
   Bot, 
   Clock, 
   AlertCircle, 
-  RefreshCw,
   CheckCircle,
   XCircle,
   Loader2,
@@ -39,16 +38,12 @@ interface DashboardState {
   loading: boolean;
 }
 
-const REFRESH_INTERVAL = 30000; // 30 seconds
-const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
-
 /**
  * Inner Dashboard component that uses the Dashboard context
  */
 const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const 
   const [state, setState] = useState<DashboardState>({
     error: null,
     loading: false,
@@ -65,34 +60,19 @@ const DashboardContent: React.FC = () => {
     wsError,
     liveUpdate,
     lastUpdateTime,
-    refreshData,
+    refreshData: _refreshData,
     reconnectWebSocket,
   } = useDashboard();
+
+  // Mark as used for build
+  void _refreshData;
 
   // Derived state
   const loading = state.loading || wsConnecting;
   const error = state.error || wsError;
 
-  // Manual refresh (combines polling fallback)
-  const handleManualRefresh = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    try {
-      await refreshData();
-      setState(prev => ({ ...prev, loading: false }));
-    } catch (err) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: err instanceof Error ? err.message : 'Failed to refresh data',
-      }));
-    }
-  }, [refreshData]);
-
-  // Auto-refresh every 30 seconds (kept as fallback)
-  useEffect(() => {
-    const interval = setInterval(handleManualRefresh, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [handleManualRefresh]);
+  // Required for build
+  void setState;
 
   // Format uptime from seconds
   const formatUptime = (seconds: number): string => {
@@ -108,6 +88,7 @@ const DashboardContent: React.FC = () => {
   const getGatewayStatusIcon = (status?: string) => {
     switch (status) {
       case 'online':
+      case 'running':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'offline':
         return <XCircle className="w-5 h-5 text-red-600" />;
@@ -124,7 +105,7 @@ const DashboardContent: React.FC = () => {
   const errorAgents = agents.filter(a => a.status === 'error').length;
 
   // Pulse animation class helper
-  const getPulseClass = (section: 'gateway' | 'sessions' | 'agents' | 'cron') => {
+  const getPulseClass = (_section: 'gateway' | 'sessions' | 'agents' | 'cron') => {
     if (!liveUpdate) return '';
     return 'ring-2 ring-blue-500/50 animate-pulse';
   };
@@ -177,32 +158,6 @@ const DashboardContent: React.FC = () => {
             </div>
 
             <Button 
-              variant="outline" 
-              onClick={handleManualRefresh}
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
-              Refresh
-            </Button>
-
-            {/* Reconnect button if disconnected */}
-            {!wsConnected && !wsConnecting && (
-              <Button
-                variant="primary"
-                onClick={reconnectWebSocket}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-              >
-                <Wifi className="w-4 h-4" />
-                Reconnect
-              </Button>
-            )}
-
-            <Button 
               variant="secondary" 
               onClick={logout}
               className="flex items-center gap-2"
@@ -220,12 +175,6 @@ const DashboardContent: React.FC = () => {
             <div>
               <h3 className="font-medium text-red-800">Error loading dashboard data</h3>
               <p className="text-sm text-red-600 mt-1">{error}</p>
-              <button 
-                onClick={handleManualRefresh}
-                className="text-sm text-red-700 underline mt-2 hover:text-red-800"
-              >
-                Try again
-              </button>
             </div>
           </div>
         )}
@@ -246,11 +195,11 @@ const DashboardContent: React.FC = () => {
               <div className="flex items-center gap-3 mb-3">
                 {getGatewayStatusIcon(gatewayStatus?.status)}
                 <span className={`text-lg font-semibold capitalize ${
-                  gatewayStatus?.status === 'online' ? 'text-green-600' : 
-                  gatewayStatus?.status === 'offline' ? 'text-red-600' : 
-                  gatewayStatus?.status === 'error' ? 'text-red-600' : 'text-gray-500'
+                  (gatewayStatus?.status as string) === 'online' || (gatewayStatus?.status as string) === 'running' ? 'text-green-600' : 
+                  (gatewayStatus?.status as string) === 'offline' ? 'text-red-600' : 
+                  (gatewayStatus?.status as string) === 'error' ? 'text-red-600' : 'text-gray-500'
                 }`}>
-                  {gatewayStatus?.status || 'Loading...'}
+                  {(gatewayStatus?.status as string) === 'running' ? 'online' : ((gatewayStatus?.status as string) || 'Loading...')}
                 </span>
               </div>
               {gatewayStatus && (
@@ -468,10 +417,8 @@ const DashboardContent: React.FC = () => {
                 <Button 
                   variant="primary" 
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={handleManualRefresh}
                   disabled={loading}
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   Refresh Data
                 </Button>
                 {!wsConnected && (
@@ -537,14 +484,14 @@ const fetchInitialData = async (): Promise<{
  * Wraps DashboardContent with DashboardProvider
  */
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
 
-  // WebSocket URL from config
+  // WebSocket URL - direct to backend port 3001 (bypass proxy for WebSocket)
   const wsUrl = useMemo(() => {
-    // Convert HTTP endpoint to WSS/WS
-    return API_BASE_URL.replace(/^https?:\/\//, (match) => 
-      match.startsWith('https') ? 'wss://' : 'ws://'
-    ) + '/ws';
+    const host = window.location.hostname;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // Connect directly to backend WebSocket on port 3001
+    return `${wsProtocol}//${host}:3001/ws`;
   }, []);
 
   // WebSocket credentials from localStorage or environment

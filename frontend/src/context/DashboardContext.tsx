@@ -98,7 +98,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   
   // Pulsing state for visual indicators
-  const [pulsing, setPulsing] = useState<PulsingState>({
+  const [_pulsing, setPulsing] = useState<PulsingState>({
     sessions: false,
     agents: false,
     cronJobs: false,

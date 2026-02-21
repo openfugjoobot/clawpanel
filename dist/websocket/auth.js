@@ -1,30 +1,79 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyClient = verifyClient;
 exports.verifyClientSync = verifyClientSync;
+const url = __importStar(require("url"));
 /**
- * Extract Basic Auth credentials from HTTP headers
+ * Extract Basic Auth credentials from HTTP headers or URL query params
  *
  * @param req - Incoming HTTP request
  * @returns Object with username and password, or null if extraction fails
  */
 function extractBasicAuth(req) {
+    // First try Authorization header
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Basic ')) {
-        return null;
-    }
-    const base64Credentials = authHeader.split(' ')[1];
-    try {
-        const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
-        const [username, password] = credentials.split(':');
-        if (!username || !password) {
-            return null;
+    if (authHeader && authHeader.startsWith('Basic ')) {
+        const base64Credentials = authHeader.split(' ')[1];
+        try {
+            const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
+            const [username, password] = credentials.split(':');
+            if (username && password) {
+                return { username, password };
+            }
         }
-        return { username, password };
+        catch {
+            // Continue to next method
+        }
+    }
+    // Fallback: Try query parameter token
+    try {
+        const parsedUrl = url.parse(req.url || '', true);
+        const token = parsedUrl.query.token;
+        if (typeof token === 'string') {
+            const credentials = Buffer.from(token, 'base64').toString('utf8');
+            const [username, password] = credentials.split(':');
+            if (username && password) {
+                return { username, password };
+            }
+        }
     }
     catch {
-        return null;
+        // Parse error, return null
     }
+    return null;
 }
 /**
  * Validate credentials against environment variables

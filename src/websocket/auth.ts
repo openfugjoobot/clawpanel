@@ -1,33 +1,50 @@
 import { IncomingMessage } from 'http';
 import { ClientInfo, VerifyClientCallback } from './types';
+import * as url from 'url';
 
 /**
- * Extract Basic Auth credentials from HTTP headers
+ * Extract Basic Auth credentials from HTTP headers or URL query params
  * 
  * @param req - Incoming HTTP request
  * @returns Object with username and password, or null if extraction fails
  */
 function extractBasicAuth(req: IncomingMessage): { username: string; password: string } | null {
+  // First try Authorization header
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return null;
-  }
-
-  const base64Credentials = authHeader.split(' ')[1];
-  
-  try {
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
-    const [username, password] = credentials.split(':');
+  if (authHeader && authHeader.startsWith('Basic ')) {
+    const base64Credentials = authHeader.split(' ')[1];
     
-    if (!username || !password) {
-      return null;
+    try {
+      const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
+      const [username, password] = credentials.split(':');
+      
+      if (username && password) {
+        return { username, password };
+      }
+    } catch {
+      // Continue to next method
     }
-
-    return { username, password };
-  } catch {
-    return null;
   }
+
+  // Fallback: Try query parameter token
+  try {
+    const parsedUrl = url.parse(req.url || '', true);
+    const token = parsedUrl.query.token;
+    
+    if (typeof token === 'string') {
+      const credentials = Buffer.from(token, 'base64').toString('utf8');
+      const [username, password] = credentials.split(':');
+      
+      if (username && password) {
+        return { username, password };
+      }
+    }
+  } catch {
+    // Parse error, return null
+  }
+
+  return null;
 }
 
 /**

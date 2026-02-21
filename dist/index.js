@@ -111,6 +111,22 @@ app.post('/api/auth/change-password', (req, res) => {
         res.status(500).json({ error: 'Failed to change password', details: error.message });
     }
 });
+// Serve static frontend files (must be after API routes, before error handler)
+const frontendDistPath = path_1.default.resolve(__dirname, '../frontend/dist');
+if (fs_1.default.existsSync(frontendDistPath)) {
+    app.use(express_1.default.static(frontendDistPath));
+    // SPA fallback: serve index.html for all non-API routes
+    app.get(/.*/, (req, res) => {
+        // Don't serve index.html for API routes
+        if (req.path.startsWith('/api/')) {
+            return res.status(404).json({ error: 'API endpoint not found' });
+        }
+        res.sendFile(path_1.default.join(frontendDistPath, 'index.html'));
+    });
+}
+else {
+    console.warn('[WARNING] Frontend dist not found at', frontendDistPath);
+}
 // Global error handler (must be after all routes)
 app.use(error_1.errorHandler);
 // Start HTTPS server

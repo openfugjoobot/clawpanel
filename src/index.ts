@@ -98,6 +98,23 @@ app.post('/api/auth/change-password', (req, res) => {
   }
 });
 
+// Serve static frontend files (must be after API routes, before error handler)
+const frontendDistPath = path.resolve(__dirname, '../frontend/dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  
+  // SPA fallback: serve index.html for all non-API routes
+  app.get(/.*/, (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  console.warn('[WARNING] Frontend dist not found at', frontendDistPath);
+}
+
 // Global error handler (must be after all routes)
 app.use(errorHandler);
 

@@ -29,15 +29,20 @@ import { DEFAULT_RECONNECT_CONFIG, DEFAULT_PING_PONG_CONFIG } from '../websocket
  * or include credentials in initial handshake via subprotocols)
  */
 function createWebSocketUrl(baseUrl: string, username: string, password: string): string {
-  const wsUrl = baseUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
-  
-  // Include credentials as basic auth in the URL
-  // Format: wss://username:password@host:port/path
-  const url = new URL(wsUrl);
-  url.username = encodeURIComponent(username);
-  url.password = encodeURIComponent(password);
-  
-  return url.toString();
+  try {
+    const wsUrl = baseUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
+    const url = new URL(wsUrl);
+    
+    // Send credentials as Base64-encoded token in query param
+    // Browsers don't reliably send user:pass in WebSocket URL
+    const credentials = btoa(`${username}:${password}`);
+    url.searchParams.set('token', credentials);
+    
+    return url.toString();
+  } catch (err) {
+    console.error('[WebSocket] Invalid URL:', baseUrl, err);
+    return baseUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
+  }
 }
 
 /**
