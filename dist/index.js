@@ -13,6 +13,8 @@ const sessions_1 = __importDefault(require("./routes/sessions"));
 const agents_1 = __importDefault(require("./routes/agents"));
 const cron_1 = __importDefault(require("./routes/cron"));
 const workspace_1 = __importDefault(require("./routes/workspace"));
+const config_1 = __importDefault(require("./routes/config"));
+const github_1 = __importDefault(require("./routes/github"));
 // Load environment variables
 dotenv_1.default.config();
 // Create Express app
@@ -35,6 +37,10 @@ app.use('/api/sessions', sessions_1.default);
 app.use('/api/agents', agents_1.default);
 // Mount cron routes
 app.use('/api/cron', cron_1.default);
+// Mount config routes
+app.use('/api/config', config_1.default);
+// Mount github routes
+app.use('/api/github', github_1.default);
 // Mount workspace routes
 app.use('/api', workspace_1.default);
 // Global error handler (must be after all routes)

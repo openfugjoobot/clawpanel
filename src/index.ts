@@ -9,6 +9,7 @@ import agentsRoutes from './routes/agents';
 import cronRoutes from './routes/cron';
 import workspaceRoutes from './routes/workspace';
 import configRoutes from './routes/config';
+import githubRoutes from './routes/github';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,9 @@ app.use('/api/cron', cronRoutes);
 
 // Mount config routes
 app.use('/api/config', configRoutes);
+
+// Mount github routes
+app.use('/api/github', githubRoutes);
 
 // Mount workspace routes
 app.use('/api', workspaceRoutes);

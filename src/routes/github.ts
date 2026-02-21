@@ -1,0 +1,84 @@
+import { Router, Request, Response } from 'express';
+import { execSync } from 'child_process';
+
+const router = Router();
+
+// Helper function to execute gh commands safely
+const executeGHCommand = (command: string): any => {
+  try {
+    const result = execSync(command, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+      timeout: 10000 // 10 second timeout
+    });
+    return JSON.parse(result);
+  } catch (error) {
+    throw new Error(`Failed to execute GitHub CLI command: ${error}`);
+  }
+};
+
+// GET /api/github/repos → Liste repos aus Config oder hardcoded
+router.get('/repos', (req: Request, res: Response) => {
+  try {
+    // For now, return hardcoded list of repositories
+    // In a real implementation, this could come from config
+    const repos = [
+      {
+        owner: 'openfugjoobot',
+        name: 'clawpanel',
+        description: 'OpenClaw-based panel system'
+      }
+    ];
+    
+    res.json(repos);
+  } catch (error) {
+    console.error('Error fetching repositories:', error);
+    res.status(503).json({ error: 'Service unavailable' });
+  }
+});
+
+// GET /api/github/:owner/:repo/issues → Issues via "gh issue list --json"
+router.get('/:owner/:repo/issues', (req: Request, res: Response) => {
+  try {
+    const { owner, repo } = req.params;
+    
+    // Validate owner and repo parameters
+    if (!owner || !repo) {
+      return res.status(400).json({ error: 'Owner and repo are required' });
+    }
+    
+    // Execute gh issue list command
+    const issues = executeGHCommand(
+      `gh issue list --repo ${owner}/${repo} --json number,title,state,createdAt,updatedAt,assignees,labels,url`
+    );
+    
+    res.json(issues);
+  } catch (error) {
+    console.error('Error fetching issues:', error);
+    res.status(503).json({ error: 'Service unavailable' });
+  }
+});
+
+// GET /api/github/:owner/:repo/pulls → PRs via "gh pr list --json"
+router.get('/:owner/:repo/pulls', (req: Request, res: Response) => {
+  try {
+    const { owner, repo } = req.params;
+    
+    // Validate owner and repo parameters
+    if (!owner || !repo) {
+      return res.status(400).json({ error: 'Owner and repo are required' });
+    }
+    
+    // Execute gh pr list command
+    const pulls = executeGHCommand(
+      `gh pr list --repo ${owner}/${repo} --json number,title,state,createdAt,updatedAt,author,labels,url`
+    );
+    
+    res.json(pulls);
+  } catch (error) {
+    console.error('Error fetching pull requests:', error);
+    res.status(503).json({ error: 'Service unavailable' });
+  }
+});
+
+export default router;
