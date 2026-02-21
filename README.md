@@ -63,7 +63,73 @@ ClawPanel provides **8 comprehensive frontend pages** to manage your OpenClaw de
 
 ---
 
-## 🚀 Quick Start
+## 🐳 Docker Deployment (Recommended)
+
+### Requirements
+- Docker & Docker Compose
+- Nginx Proxy Manager (for HTTPS)
+
+### 1. Backend als Docker-Image bauen
+
+```bash
+cd backend/
+docker build -t clawpanel-backend .
+```
+
+### 2. Backend im Docker-Netzwerk starten
+
+```bash
+# Wenn Nginx Proxy Manager im "proxy" Netzwerk läuft:
+docker run -d --name clawpanel-backend --network proxy \
+  -p 3001:3001 \
+  --env-file .env \
+  clawpanel-backend
+```
+
+### 3. Frontend starten
+
+```bash
+cd frontend/
+npm run dev -- --host
+```
+
+### 4. Nginx Proxy Manager konfigurieren
+
+Öffne `http://DEINE_SERVER_IP:81` und konfiguriere:
+
+**Haupt-Domain (z.B. `clawpanel.fugjoo.duckdns.org`):**
+- Scheme: `http`
+- Forward Hostname/IP: `DEINE_SERVER_IP`
+- Forward Port: `5173` (Frontend Vite Dev Server)
+- SSL: Zertifikat auswählen
+
+**Custom Location für API-Pfad (`/api`):**
+```
+Location:       /api
+Forward Host:   clawpanel-backend
+Forward Port:   3001
+Scheme:         http
+```
+
+### Frontend .env Konfiguration
+
+```env
+# Wichtig: Relativer Pfad für API (durch npm geroutet)
+VITE_API_BASE=/api
+VITE_API_USER=admin
+VITE_API_PASS=changeme
+```
+
+**Architektur mit Docker:**
+```
+[HTTPS] → Nginx Proxy Manager
+   ├── /     → Vite Dev Server (Frontend)
+   └── /api  → clawpanel-backend (Docker)
+```
+
+---
+
+## 🚀 Quick Start (Ohne Docker)
 
 ### Prerequisites
 
@@ -147,14 +213,14 @@ npm start
 │                                                             │
 │  ┌──────────────┐      ┌──────────────────────────────────┐  │
 │  │   Frontend   │      │           Backend                │  │
-│  │   (Vite)     │◄────►│         (Express)                │  │
+│  │   (Vite)     │◄────►│         (Express/Docker)         │  │
 │  │  ┌─┬─┬─┐    │      │                                  │  │
 │  │  │R│A│C│    │      │  ┌─────────┐    ┌─────────────┐   │  │
 │  │  │e│x│o│    │      │  │  Auth   │    │   OpenClaw  │   │  │
 │  │  │a│i│n│    │      │  │Middleware──►│    Service  │   │  │
-│  │  │c│o│t│    │      │  └─────────┘    └──────┬──────┘   │  │
-│  │  │t│s│s│    │      │                         │         │  │
-│  │  │ │ │Q│    │      │  ┌──────────────────────┴──────┐  │  │
+│  │  │c│o│s│    │      │  └─────────┘    └──────┬──────┘   │  │
+│  │  │t│s│Q│    │      │                         │         │  │
+│  │  │ │ │ │    │      │  ┌──────────────────────┴──────┐  │  │
 │  │  └─┴─┴─┘    │      │  │      CLI Commands          │  │  │
 │  │             │      │  │  openclaw agents list      │  │  │
 │  │ 8 Pages:    │      │  │  openclaw sessions list    │  │  │
@@ -162,16 +228,21 @@ npm start
 │  │ • Sessions  │      │  │  openclaw gateway health   │  │  │
 │  │ • Agents    │      │  └─────────────────────────────┘  │  │
 │  │ • Cron      │      │                                   │  │
-│  │ • Workspace │      └───────────────────────────────────┘  │
-│  │ • GitHub    │                                             │
-│  │ • Settings  │      ┌───────────────────────────────┐      │
-│  │ • Login     │      │      openclaw.json            │      │
-│  └─────────────┘      │   ┌─────────────────────┐     │      │
-│                       │   │  Configuration      │     │      │
-│                       │   └─────────────────────┘     │      │
-│                       └───────────────────────────────┘      │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+│  │ • Workspace │      └───────────────────────────────────┘  │  │
+│  │ • GitHub    │                                             │  │
+│  │ • Settings  │      ┌───────────────────────────────┐      │  │
+│  │ • Login     │      │      openclaw.json            │      │  │
+│  └─────────────┘      │   ┌─────────────────────┐     │      │  │
+│                       │   │  Configuration      │     │      │  │
+│                       │   └─────────────────────┘     │      │  │
+│                       └───────────────────────────────┘      │  │
+│                                                              │  │
+└─────────────────────────────────────────────────────────────┘  │
+
+Docker Mode:
+[HTTPS] → Nginx Proxy Manager
+    ├── /     → Frontend (Port 5173)
+    └── /api  → Backend Container (Port 3001, Network: proxy)
 ```
 
 ### Tech Stack
@@ -192,6 +263,7 @@ npm start
 - Basic Auth (authentication)
 - CORS enabled
 - WebSocket support (prepared)
+- Docker support
 
 ---
 
@@ -225,6 +297,8 @@ For detailed API documentation, see [docs/API.md](docs/API.md).
 
 ## 🔐 Environment Variables
 
+**Backend (.env):**
+
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `PORT` | Backend server port | `3000` | No |
@@ -233,11 +307,11 @@ For detailed API documentation, see [docs/API.md](docs/API.md).
 | `GATEWAY_TOKEN` | OpenClaw gateway token | - | No |
 | `OPENCLAW_WORKSPACE` | Workspace path | `~/.openclaw/workspace` | No |
 
-**Frontend Environment Variables:**
+**Frontend (.env):**
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_BASE` | Backend API URL | `http://localhost:3000` |
+| `VITE_API_BASE` | Backend API URL | `http://localhost:3000` or `/api` (Docker) |
 
 ---
 
@@ -290,64 +364,14 @@ npm run preview
 npm run lint
 ```
 
-### Project Structure
+### Docker Development
 
-```
-clawpanel/
-├── src/
-│   ├── index.ts              # Express server entry
-│   ├── middleware/
-│   │   ├── auth.ts           # Basic auth middleware
-│   │   └── error.ts          # Error handler
-│   ├── routes/
-│   │   ├── agents.ts         # Agent management
-│   │   ├── config.ts         # Config management
-│   │   ├── cron.ts           # Cron job management
-│   │   ├── gateway.ts        # Gateway control
-│   │   ├── github.ts         # GitHub integration
-│   │   ├── sessions.ts       # Session management
-│   │   └── workspace.ts      # File browser
-│   ├── services/
-│   │   └── openclaw.ts       # OpenClaw CLI wrapper
-│   └── types/
-│       └── index.ts          # TypeScript types
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx           # React router setup
-│   │   ├── main.tsx          # Entry point
-│   │   ├── pages/
-│   │   │   ├── Agents.tsx
-│   │   │   ├── Cron.tsx
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── GitHub.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── Sessions.tsx
-│   │   │   ├── Settings.tsx
-│   │   │   └── Workspace.tsx
-│   │   ├── components/
-│   │   │   └── ui/           # Reusable UI components
-│   │   ├── context/
-│   │   │   └── AuthContext.tsx
-│   │   ├── hooks/
-│   │   │   └── useApi.ts
-│   │   ├── services/
-│   │   │   ├── agents.ts
-│   │   │   ├── api.ts
-│   │   │   ├── config.ts
-│   │   │   ├── cron.ts
-│   │   │   ├── gateway.ts
-│   │   │   ├── github.ts
-│   │   │   ├── sessions.ts
-│   │   │   └── workspace.ts
-│   │   └── types/
-│   │       └── index.ts
-│   ├── index.html
-│   └── vite.config.ts
-├── docs/
-│   └── API.md                # API documentation
-├── package.json
-├── .env
-└── README.md
+```bash
+# Build Docker image
+docker build -t clawpanel-backend .
+
+# Run with docker-compose
+docker-compose up -d
 ```
 
 ---
