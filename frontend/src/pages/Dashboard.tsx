@@ -486,12 +486,9 @@ const fetchInitialData = async (): Promise<{
 export const Dashboard: React.FC = () => {
   const { user: _user } = useAuth();
 
-  // WebSocket URL - direct to backend port 3001 (bypass proxy for WebSocket)
+  // WebSocket URL - use dedicated subdomain with valid SSL cert
   const wsUrl = useMemo(() => {
-    const host = window.location.hostname;
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Connect directly to backend WebSocket on port 3001
-    return `${wsProtocol}//${host}:3001/ws`;
+    return 'wss://clawserver.fugjoo.duckdns.org/ws';
   }, []);
 
   // WebSocket credentials from localStorage or environment
