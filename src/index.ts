@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
+import gatewayRoutes from './routes/gateway';
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +23,9 @@ app.get('/health', (req, res) => {
 
 // Apply authentication middleware to all /api routes
 app.use('/api', authMiddleware);
+
+// Mount gateway routes
+app.use('/api/gateway', gatewayRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);
