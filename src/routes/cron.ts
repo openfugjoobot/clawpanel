@@ -3,18 +3,52 @@ import { execSync } from 'child_process';
 
 const router = express.Router();
 
+interface CronJob {
+  id: string;
+  name: string;
+  schedule: string;
+  next: string;
+  last: string;
+  status: string;
+  target: string;
+  agent: string;
+}
+
+// Parse cron list output into structured data
+function parseCronList(output: string): CronJob[] {
+  const lines = output.trim().split('\n');
+  const jobs: CronJob[] = [];
+  
+  // Skip header line
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Split by 2+ spaces to handle table columns
+    const columns = line.split(/\s{2,}/);
+    if (columns.length >= 8) {
+      jobs.push({
+        id: columns[0],
+        name: columns[1],
+        schedule: columns[2],
+        next: columns[3],
+        last: columns[4],
+        status: columns[5],
+        target: columns[6],
+        agent: columns[7]
+      });
+    }
+  }
+  
+  return jobs;
+}
+
 // GET /api/cron -> Execute "openclaw cron list" and return output as JSON
 router.get('/', (req, res) => {
   try {
     const output = execSync('openclaw cron list', { encoding: 'utf-8' });
-    // Try to parse as JSON if possible, otherwise return as text
-    try {
-      const jsonOutput = JSON.parse(output);
-      res.json(jsonOutput);
-    } catch {
-      // If parsing fails, return the raw output
-      res.json({ output: output.trim() });
-    }
+    const jobs = parseCronList(output);
+    res.json(jobs);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

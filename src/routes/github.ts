@@ -8,12 +8,29 @@ const executeGHCommand = (command: string): any => {
   try {
     const result = execSync(command, {
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
+      stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 10000 // 10 second timeout
     });
     return JSON.parse(result);
-  } catch (error) {
-    throw new Error(`Failed to execute GitHub CLI command: ${error}`);
+  } catch (error: any) {
+    // Check if it's an auth error
+    const stderr = error.stderr?.toString() || '';
+    const stdout = error.stdout?.toString() || '';
+    
+    if (stderr.includes('authentication') || stderr.includes('credentials') || stderr.includes('token')) {
+      throw new Error('GitHub CLI not authenticated. Run "gh auth login"');
+    }
+    
+    // Try to parse stdout anyway (gh sometimes returns data on error)
+    try {
+      if (stdout) {
+        return JSON.parse(stdout);
+      }
+    } catch {
+      // Ignore parse error
+    }
+    
+    throw new Error(`Failed to execute GitHub CLI command: ${error.message}`);
   }
 };
 
@@ -47,15 +64,22 @@ router.get('/:owner/:repo/issues', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Owner and repo are required' });
     }
     
+    // Check if gh is authenticated
+    try {
+      execSync('gh auth status', { stdio: 'pipe' });
+    } catch {
+      return res.status(401).json({ error: 'GitHub CLI not authenticated. Run "gh auth login"' });
+    }
+    
     // Execute gh issue list command
     const issues = executeGHCommand(
       `gh issue list --repo ${owner}/${repo} --json number,title,state,createdAt,updatedAt,assignees,labels,url`
     );
     
     res.json(issues);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching issues:', error);
-    res.status(503).json({ error: 'Service unavailable' });
+    res.status(503).json({ error: error.message || 'Service unavailable' });
   }
 });
 
@@ -69,15 +93,22 @@ router.get('/:owner/:repo/pulls', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Owner and repo are required' });
     }
     
+    // Check if gh is authenticated
+    try {
+      execSync('gh auth status', { stdio: 'pipe' });
+    } catch {
+      return res.status(401).json({ error: 'GitHub CLI not authenticated. Run "gh auth login"' });
+    }
+    
     // Execute gh pr list command
     const pulls = executeGHCommand(
       `gh pr list --repo ${owner}/${repo} --json number,title,state,createdAt,updatedAt,author,labels,url`
     );
     
     res.json(pulls);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching pull requests:', error);
-    res.status(503).json({ error: 'Service unavailable' });
+    res.status(503).json({ error: error.message || 'Service unavailable' });
   }
 });
 
