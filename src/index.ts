@@ -13,6 +13,7 @@ import cronRoutes from './routes/cron';
 import workspaceRoutes from './routes/workspace';
 import configRoutes from './routes/config';
 import githubRoutes from './routes/github';
+import authRoutes from './routes/auth';
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +30,9 @@ app.use(cors());
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Public auth routes (no auth required)
+app.use('/api/auth', authRoutes);
 
 // Apply authentication middleware to all /api routes
 app.use('/api', authMiddleware);
@@ -53,6 +57,44 @@ app.use('/api/github', githubRoutes);
 
 // Mount workspace routes
 app.use('/api', workspaceRoutes);
+
+// Protected change-password endpoint
+app.post('/api/auth/change-password', (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    // Verify current password
+    const expectedPassword = process.env.DASHBOARD_PASSWORD;
+    if (currentPassword !== expectedPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Validate new password
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+    
+    // Update .env file
+    const envPath = path.resolve(process.cwd(), '.env');
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    
+    envContent = envContent.replace(
+      /DASHBOARD_PASSWORD=.*/,
+      `DASHBOARD_PASSWORD=${newPassword}`
+    );
+    
+    fs.writeFileSync(envPath, envContent);
+    process.env.DASHBOARD_PASSWORD = newPassword;
+    
+    console.log(`[SECURITY] Password changed at ${new Date().toISOString()}`);
+    
+    res.json({ message: 'Password updated successfully' });
+    
+  } catch (error: any) {
+    console.error('[ERROR] Failed to change password:', error);
+    res.status(500).json({ error: 'Failed to change password', details: error.message });
+  }
+});
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

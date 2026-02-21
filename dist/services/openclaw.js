@@ -20,8 +20,20 @@ async function gatewayHealth() {
         if (stderr) {
             throw new Error(`Gateway command error: ${stderr}`);
         }
-        // Parse the JSON output
-        const healthData = JSON.parse(stdout);
+        // Extract JSON from output (strip "Gateway call: health" prefix and any extra text)
+        const lines = stdout.split('\n');
+        let jsonStart = -1;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim().startsWith('{')) {
+                jsonStart = i;
+                break;
+            }
+        }
+        if (jsonStart === -1) {
+            throw new Error('No JSON found in gateway output');
+        }
+        const jsonStr = lines.slice(jsonStart).join('\n');
+        const healthData = JSON.parse(jsonStr);
         return healthData;
     }
     catch (error) {
