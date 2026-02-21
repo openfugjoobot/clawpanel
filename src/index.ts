@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { authMiddleware } from './middleware/auth';
@@ -14,13 +15,14 @@ import workspaceRoutes from './routes/workspace';
 import configRoutes from './routes/config';
 import githubRoutes from './routes/github';
 import authRoutes from './routes/auth';
+import { createWebSocketServer } from './websocket/server';
 
 // Load environment variables
 dotenv.config();
 
 // Create Express app
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(express.json());
@@ -105,17 +107,51 @@ const portNumber = typeof port === 'string' ? parseInt(port, 10) : port;
 const certPath = process.env.SSL_CERT_PATH || '/home/ubuntu/.openclaw/certs/clawpanel.crt';
 const keyPath = process.env.SSL_KEY_PATH || '/home/ubuntu/.openclaw/certs/clawpanel.key';
 
+let server: https.Server | http.Server;
+let wsServer: ReturnType<typeof createWebSocketServer> | null = null;
+
 if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   const sslOptions = {
     cert: fs.readFileSync(certPath),
     key: fs.readFileSync(keyPath)
   };
-  https.createServer(sslOptions, app).listen(portNumber, '0.0.0.0', () => {
+  server = https.createServer(sslOptions, app);
+  server.listen(portNumber, '0.0.0.0', () => {
     console.log(`HTTPS server is running on port ${portNumber}`);
   });
 } else {
   console.warn('SSL certificates not found, starting HTTP server...');
-  app.listen(portNumber, '0.0.0.0', () => {
+  server = http.createServer(app);
+  server.listen(portNumber, '0.0.0.0', () => {
     console.log(`HTTP server is running on port ${portNumber}`);
   });
 }
+
+// Attach WebSocket server to the HTTP(S) server
+wsServer = createWebSocketServer({ server: server as https.Server, path: '/ws' });
+console.log(`WebSocket server attached at path: /ws`);
+
+// Graceful shutdown handling
+process.on('SIGTERM', async () => {
+  console.log('\n[SHUTDOWN] SIGTERM received, shutting down gracefully...');
+  if (wsServer) {
+    const { shutdownWebSocketServer } = await import('./websocket/server');
+    await shutdownWebSocketServer(wsServer);
+  }
+  server.close(() => {
+    console.log('[SHUTDOWN] HTTP server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', async () => {
+  console.log('\n[SHUTDOWN] SIGINT received, shutting down gracefully...');
+  if (wsServer) {
+    const { shutdownWebSocketServer } = await import('./websocket/server');
+    await shutdownWebSocketServer(wsServer);
+  }
+  server.close(() => {
+    console.log('[SHUTDOWN] HTTP server closed');
+    process.exit(0);
+  });
+});
