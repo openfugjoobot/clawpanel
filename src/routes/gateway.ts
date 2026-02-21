@@ -1,7 +1,20 @@
 import { Router, Request, Response } from 'express';
 import { gatewayHealth } from '../services/openclaw';
+import { execSync } from 'child_process';
 
 const router = Router();
+
+/**
+ * Get OpenClaw gateway version
+ */
+const getGatewayVersion = (): string => {
+  try {
+    const version = execSync('openclaw --version', { encoding: 'utf-8', timeout: 5000 });
+    return version.trim();
+  } catch {
+    return 'unknown';
+  }
+};
 
 /**
  * GET /api/gateway/status
@@ -10,11 +23,12 @@ const router = Router();
 router.get('/status', async (req: Request, res: Response) => {
   try {
     const health: any = await gatewayHealth();
+    const version = getGatewayVersion();
     
     // Transform gateway response to GatewayStatus format
     const gatewayStatus = {
       status: health.ok ? 'online' : 'error',
-      version: health.meta?.lastTouchedVersion || 'unknown',
+      version: version,
       pid: process.pid, // Use backend PID as proxy
       uptime: health.ts ? Math.floor((Date.now() - health.ts) / 1000) : 0,
       startedAt: health.ts ? new Date(health.ts).toISOString() : new Date().toISOString(),
