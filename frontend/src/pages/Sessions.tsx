@@ -17,13 +17,6 @@ import { Button } from '../components/ui/Button';
 import { getSessions, killSession } from '../services/sessions';
 import type { Session } from '../types';
 
-interface SessionWithMeta extends Session {
-  agent?: string;
-  model?: string;
-  tokens?: number;
-  kind?: 'direct' | 'cron' | 'subagent';
-}
-
 interface ConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;

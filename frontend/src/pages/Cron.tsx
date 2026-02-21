@@ -47,7 +47,7 @@ const formatSchedule = (schedule: string): string => {
   const parts = schedule.split(' ');
   if (parts.length !== 5) return schedule;
   
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  const [minute, hour] = parts;
   
   // Common patterns
   if (schedule === '* * * * *') return 'Every minute';

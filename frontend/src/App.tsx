@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Sessions } from './pages/Sessions';
 import { Agents } from './pages/Agents';
 import { Cron } from './pages/Cron';
+import { GitHub } from './pages/GitHub';
 
 function App() {
   return (
@@ -51,6 +52,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Cron />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* GitHub route - protected */}
+          <Route 
+            path="/github" 
+            element={
+              <ProtectedRoute>
+                <GitHub />
               </ProtectedRoute>
             } 
           />

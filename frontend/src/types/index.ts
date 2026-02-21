@@ -56,3 +56,49 @@ export interface CreateCronJobPayload {
   command: string;
   agent: string;
 }
+
+// GitHub Issue Interface
+export interface GitHubIssue {
+  id: number;
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  html_url: string;
+  created_at: string;
+  updated_at: string;
+  user: {
+    login: string;
+    avatar_url: string;
+  };
+  labels: Array<{
+    name: string;
+    color: string;
+  }>;
+  comments: number;
+}
+
+// GitHub Pull Request Interface
+export interface GitHubPullRequest {
+  id: number;
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  html_url: string;
+  created_at: string;
+  updated_at: string;
+  user: {
+    login: string;
+    avatar_url: string;
+  };
+  draft: boolean;
+  merged: boolean;
+  merged_at: string | null;
+  head: {
+    label: string;
+    ref: string;
+  };
+  base: {
+    label: string;
+    ref: string;
+  };
+}

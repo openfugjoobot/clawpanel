@@ -11,7 +11,8 @@ import {
   XCircle,
   Loader2,
   LogOut,
-  ArrowRight
+  ArrowRight,
+  Github
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '../components/ui/Card';
@@ -180,7 +181,7 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
           {/* Gateway Status Card */}
           <Card 
             title={
@@ -320,6 +321,34 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
                 <span>View all jobs</span>
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </Card>
+
+          {/* GitHub Card */}
+          <Card 
+            title={
+              <div className="flex items-center gap-2">
+                <Github className="w-4 h-4" />
+                GitHub
+              </div>
+            }
+            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            onClick={() => navigate('/github')}
+          >
+            <div className="p-1">
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="text-2xl font-bold text-gray-900">
+                  Issues & PRs
+                </span>
+              </div>
+              <div className="mt-4 p-3 bg-gray-50 rounded text-center">
+                <p className="text-sm text-gray-500">openclaw/clawpanel</p>
+                <p className="text-xs text-gray-400 mt-1">View on GitHub</p>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
+                <span>View repository</span>
                 <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>

@@ -6,3 +6,4 @@ export * from './gateway';
 export * from './sessions';
 export * from './agents';
 export * from './cron';
+export * from './github';
