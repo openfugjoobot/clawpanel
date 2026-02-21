@@ -256,7 +256,8 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
 
     try {
       const fullUrl = createWebSocketUrl(url, username, password);
-      console.log(`[WebSocket] Connecting to ${fullUrl.replace(/:[^@]+@/, ':***@')}`);
+      console.log(`[WebSocket] Connecting to: ${fullUrl}`);
+      console.log(`[WebSocket] URL contains token: ${fullUrl.includes('token=')}`);
 
       const ws = new WebSocket(fullUrl);
       wsRef.current = ws;
