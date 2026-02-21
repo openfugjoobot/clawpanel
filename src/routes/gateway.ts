@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { gatewayHealth } from '../services/openclaw';
 import { execSync } from 'child_process';
+import { broadcastGatewayStatus } from '../websocket/broadcaster';
 
 const router = Router();
 
@@ -26,8 +27,9 @@ router.get('/status', async (req: Request, res: Response) => {
     const version = getGatewayVersion();
     
     // Transform gateway response to GatewayStatus format
+    const status = health.ok ? 'running' : 'error';
     const gatewayStatus = {
-      status: health.ok ? 'online' : 'error',
+      status,
       version: version,
       pid: process.pid,
       // Note: OpenClaw doesn't expose real uptime, so we skip this field
@@ -35,8 +37,14 @@ router.get('/status', async (req: Request, res: Response) => {
       raw: health
     };
     
+    // Broadcast gateway status
+    broadcastGatewayStatus(status, version);
+    
     res.json(gatewayStatus);
   } catch (error: any) {
+    // Broadcast error status
+    broadcastGatewayStatus('error', 'unknown');
+    
     res.status(503).json({ 
       status: 'error',
       version: 'unknown',
@@ -53,6 +61,12 @@ router.get('/status', async (req: Request, res: Response) => {
  */
 router.post('/restart', async (req: Request, res: Response) => {
   try {
+    // Get current version before restart
+    const version = getGatewayVersion();
+    
+    // Broadcast stopping status before restart
+    broadcastGatewayStatus('stopped', version);
+    
     // Execute the openclaw gateway restart command
     const { exec } = require('child_process');
     const { promisify } = require('util');
@@ -64,11 +78,17 @@ router.post('/restart', async (req: Request, res: Response) => {
       throw new Error(stderr);
     }
     
+    // Broadcast running status after restart
+    broadcastGatewayStatus('running', version);
+    
     res.json({ 
       message: 'Gateway restart initiated',
       output: stdout 
     });
   } catch (error: any) {
+    // Broadcast error status
+    broadcastGatewayStatus('error', 'unknown');
+    
     res.status(500).json({ 
       error: 'Failed to restart gateway',
       message: error.message 

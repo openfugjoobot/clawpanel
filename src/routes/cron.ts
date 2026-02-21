@@ -1,5 +1,6 @@
 import express from 'express';
 import { execSync } from 'child_process';
+import { broadcastCronExecuted } from '../websocket/broadcaster';
 
 const router = express.Router();
 
@@ -57,7 +58,7 @@ router.get('/', (req, res) => {
 // POST /api/cron -> Execute "openclaw cron add" with provided parameters
 router.post('/', (req, res) => {
   try {
-    const { schedule, command } = req.body;
+    const { schedule, command, jobId } = req.body;
     if (!schedule || !command) {
       return res.status(400).json({ error: 'Missing schedule or command in request body' });
     }
@@ -65,8 +66,28 @@ router.post('/', (req, res) => {
     const cmd = `openclaw cron add "${schedule}" "${command}"`;
     const output = execSync(cmd, { encoding: 'utf-8' });
     
+    // Extract job ID from output if not provided
+    const extractedJobId = jobId || output.match(/ID:\s*(\w+)/)?.[1] || 'cron-job';
+    
+    // Broadcast cron job added (as execution with status scheduled)
+    broadcastCronExecuted(extractedJobId, {
+      command,
+      exitCode: 0,
+      durationMs: 0,
+      stdout: `Cron job scheduled: ${schedule}`,
+    });
+    
     res.json({ message: 'Cron job added successfully', output: output.trim() });
   } catch (error: any) {
+    // Broadcast execution error
+    if (req.body.jobId || req.body.command) {
+      broadcastCronExecuted(req.body.jobId || 'cron-error', {
+        command: req.body.command || 'unknown',
+        exitCode: 1,
+        durationMs: 0,
+        stderr: error.message,
+      });
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -77,8 +98,23 @@ router.delete('/:id', (req, res) => {
     const { id } = req.params;
     const output = execSync(`openclaw cron delete ${id}`, { encoding: 'utf-8' });
     
+    // Broadcast cron job deletion
+    broadcastCronExecuted(id, {
+      command: 'cron-delete',
+      exitCode: 0,
+      durationMs: 0,
+      stdout: 'Cron job deleted',
+    });
+    
     res.json({ message: 'Cron job deleted successfully', output: output.trim() });
   } catch (error: any) {
+    // Broadcast deletion error
+    broadcastCronExecuted(req.params.id, {
+      command: 'cron-delete',
+      exitCode: 1,
+      durationMs: 0,
+      stderr: error.message,
+    });
     res.status(500).json({ error: error.message });
   }
 });

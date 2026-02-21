@@ -1,5 +1,6 @@
 import express from 'express';
 import { listAgents, spawnAgent, killAgent } from '../services/openclaw';
+import { broadcastSessionCreated, broadcastSessionKilled, broadcastAgentStatus } from '../websocket/broadcaster';
 
 const router = express.Router();
 
@@ -23,13 +24,25 @@ router.get('/', async (req, res, next) => {
 router.post('/:id/spawn', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { task } = req.body;
+    const { task, label } = req.body;
     
     if (!task) {
       return res.status(400).json({ error: 'Task is required' });
     }
     
     const result = await spawnAgent(id, task);
+    
+    // Broadcast session created event to all WebSocket clients
+    broadcastSessionCreated({
+      key: result.sessionKey,
+      agentId: id,
+      kind: 'direct',
+      label: label || task.substring(0, 50),
+    });
+    
+    // Broadcast agent status update
+    broadcastAgentStatus(id, 'running', 1);
+    
     res.json(result);
   } catch (error) {
     next(error);
@@ -44,6 +57,10 @@ router.post('/:id/kill', async (req, res, next) => {
   try {
     const { id } = req.params;
     await killAgent(id);
+    
+    // Broadcast agent status update (sessions killed)
+    broadcastAgentStatus(id, 'idle', 0);
+    
     res.json({ message: `Agent ${id} sessions killed successfully` });
   } catch (error) {
     next(error);

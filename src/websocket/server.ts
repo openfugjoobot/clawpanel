@@ -40,6 +40,7 @@ export function createWebSocketServer(options: WebSocketServerOptions): WebSocke
     const clientIp = req.socket.remoteAddress;
 
     // Initialize extended properties
+    // Note: isAuthenticated is set based on verifyClient having passed
     extendedWs.isAuthenticated = true;
     extendedWs.userId = userId;
     extendedWs.connectionTime = new Date();
