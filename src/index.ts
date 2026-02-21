@@ -55,6 +55,7 @@ app.use('/api', workspaceRoutes);
 app.use(errorHandler);
 
 // Start server
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server is running on port ${port}`);
+const portNumber = typeof port === 'string' ? parseInt(port, 10) : port;
+app.listen(portNumber, '0.0.0.0', () => {
+  console.log(`Server is running on port ${portNumber}`);
 });
