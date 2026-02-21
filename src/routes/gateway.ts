@@ -29,10 +29,9 @@ router.get('/status', async (req: Request, res: Response) => {
     const gatewayStatus = {
       status: health.ok ? 'online' : 'error',
       version: version,
-      pid: process.pid, // Use backend PID as proxy
-      uptime: health.ts ? Math.floor((Date.now() - health.ts) / 1000) : 0,
-      startedAt: health.ts ? new Date(health.ts).toISOString() : new Date().toISOString(),
-      // Include raw data for advanced usage
+      pid: process.pid,
+      // Note: OpenClaw doesn't expose real uptime, so we skip this field
+      // The 'ts' field is just the health check timestamp, not start time
       raw: health
     };
     
@@ -42,8 +41,6 @@ router.get('/status', async (req: Request, res: Response) => {
       status: 'error',
       version: 'unknown',
       pid: 0,
-      uptime: 0,
-      startedAt: '',
       error: 'Gateway unavailable',
       message: error.message 
     });
