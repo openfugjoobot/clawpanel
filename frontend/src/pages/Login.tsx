@@ -58,12 +58,9 @@ export const Login: React.FC = () => {
       });
 
       if (response.status === 200) {
-        // Login successful - save credentials
+        // Login successful - save credentials (useEffect will handle navigation)
         login(username, password);
-        // Navigate to saved path or default to dashboard
-        const savedPath = getSavedPath();
-        localStorage.removeItem(LAST_PATH_KEY);
-        navigate(savedPath || '/dashboard', { replace: true });
+        // DON'T navigate here - useEffect will do it after auth state update
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
