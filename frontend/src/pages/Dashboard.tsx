@@ -13,7 +13,6 @@ import {
   LogOut,
   ArrowRight,
   Github,
-  FolderOpen,
   Settings
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';

@@ -24,13 +24,18 @@ export interface Session {
 // Agent Interface
 export interface Agent {
   id: string;
-  name: string;
+  identityName: string;
+  identityEmoji: string;
+  workspace: string;
+  model: string;
   status: 'idle' | 'running' | 'error' | 'completed';
   createdAt: string;
   updatedAt: string;
   task?: string;
   result?: unknown;
   error?: string;
+  isDefault?: boolean;
+  heartbeat?: unknown;
   metadata?: Record<string, unknown>;
 }
 

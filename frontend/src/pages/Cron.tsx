@@ -283,7 +283,7 @@ const CreateCronJobModal: React.FC<CreateModalProps> = ({
                 <option value="">Select an agent</option>
                 {agents.map((agent) => (
                   <option key={agent.id} value={agent.id}>
-                    {agent.name} ({agent.id})
+                    {agent.identityName} ({agent.id})
                   </option>
                 ))}
               </select>

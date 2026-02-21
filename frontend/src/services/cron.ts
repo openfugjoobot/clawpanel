@@ -10,8 +10,21 @@ import type { CronJob, CreateCronJobPayload } from '../types';
  * @returns Promise with array of cron jobs
  */
 export const getCronJobs = async (): Promise<CronJob[]> => {
-  const response = await apiClient.get<CronJob[]>('/cron');
-  return response.data;
+  const response = await apiClient.get<Array<Record<string, unknown>>>('/cron');
+  // Map API response fields to CronJob interface
+  return response.data.map(job => ({
+    id: String(job.id || ''),
+    name: String(job.name || ''),
+    schedule: String(job.schedule || ''),
+    command: String(job.target || ''), // API returns 'target' but frontend expects 'command'
+    agent: String(job.agent || ''),
+    status: (job.status as CronJob['status']) || 'pending',
+    lastRun: job.last ? String(job.last) : null, // API returns 'last' but frontend expects 'lastRun'
+    nextRun: job.next ? String(job.next) : null, // API returns 'next' but frontend expects 'nextRun'
+    createdAt: '', // Not provided by API
+    updatedAt: '', // Not provided by API
+    errorMessage: job.errorMessage ? String(job.errorMessage) : undefined,
+  }));
 };
 
 /**
