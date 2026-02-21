@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 import gatewayRoutes from './routes/gateway';
+import sessionsRoutes from './routes/sessions';
 
 // Load environment variables
 dotenv.config();
@@ -26,6 +27,9 @@ app.use('/api', authMiddleware);
 
 // Mount gateway routes
 app.use('/api/gateway', gatewayRoutes);
+
+// Mount sessions routes
+app.use('/api/sessions', sessionsRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);
