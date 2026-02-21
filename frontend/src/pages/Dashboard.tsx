@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Activity, 
   Users, 
@@ -9,7 +10,8 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  LogOut
+  LogOut,
+  ArrowRight
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '../components/ui/Card';
@@ -38,6 +40,7 @@ interface DashboardState {
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [state, setState] = useState<DashboardState>({
     data: {
@@ -218,6 +221,8 @@ export const Dashboard: React.FC = () => {
                 Active Sessions
               </div>
             }
+            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            onClick={() => navigate('/sessions')}
           >
             <div className="p-1">
               <div className="flex items-baseline gap-2">
@@ -243,6 +248,10 @@ export const Dashboard: React.FC = () => {
                   )}
                 </div>
               )}
+              <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
+                <span>View all sessions</span>
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
           </Card>
 
@@ -254,6 +263,8 @@ export const Dashboard: React.FC = () => {
                 Agents
               </div>
             }
+            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            onClick={() => navigate('/agents')}
           >
             <div className="p-1">
               <div className="flex items-baseline gap-2 mb-3">
@@ -275,6 +286,10 @@ export const Dashboard: React.FC = () => {
                   <p className="text-lg font-semibold text-red-600">{errorAgents}</p>
                   <p className="text-xs text-red-700">error</p>
                 </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
+                <span>View all agents</span>
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           </Card>

@@ -3,6 +3,8 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { Sessions } from './pages/Sessions';
+import { Agents } from './pages/Agents';
 
 function App() {
   return (
@@ -18,6 +20,26 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Sessions route - protected */}
+          <Route 
+            path="/sessions" 
+            element={
+              <ProtectedRoute>
+                <Sessions />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Agents route - protected */}
+          <Route 
+            path="/agents" 
+            element={
+              <ProtectedRoute>
+                <Agents />
               </ProtectedRoute>
             } 
           />
