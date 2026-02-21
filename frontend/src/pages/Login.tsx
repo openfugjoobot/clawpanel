@@ -165,19 +165,10 @@ export const Login: React.FC = () => {
             </form>
           </div>
 
-          {/* Footer */}
-          <div className="bg-gray-50 px-8 py-4 border-t border-gray-200">
-            <p className="text-xs text-center text-gray-500">
-              Default credentials: <span className="font-medium text-gray-700">admin</span> / 
-              <span className="font-medium text-gray-700">changeme</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Version */}
-        <p className="text-center text-xs text-gray-400 mt-6">
-          ClawPanel v1.0.0
-        </p>
+          {/* Version */}
+          <p className="text-center text-xs text-gray-400 mt-6">
+            ClawPanel v1.0.0
+          </p>
       </div>
     </div>
   );
