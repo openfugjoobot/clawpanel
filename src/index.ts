@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 import gatewayRoutes from './routes/gateway';
@@ -54,8 +57,23 @@ app.use('/api', workspaceRoutes);
 // Global error handler (must be after all routes)
 app.use(errorHandler);
 
-// Start server
+// Start HTTPS server
 const portNumber = typeof port === 'string' ? parseInt(port, 10) : port;
-app.listen(portNumber, '0.0.0.0', () => {
-  console.log(`Server is running on port ${portNumber}`);
-});
+
+const certPath = process.env.SSL_CERT_PATH || '/home/ubuntu/.openclaw/certs/clawpanel.crt';
+const keyPath = process.env.SSL_KEY_PATH || '/home/ubuntu/.openclaw/certs/clawpanel.key';
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  const sslOptions = {
+    cert: fs.readFileSync(certPath),
+    key: fs.readFileSync(keyPath)
+  };
+  https.createServer(sslOptions, app).listen(portNumber, '0.0.0.0', () => {
+    console.log(`HTTPS server is running on port ${portNumber}`);
+  });
+} else {
+  console.warn('SSL certificates not found, starting HTTP server...');
+  app.listen(portNumber, '0.0.0.0', () => {
+    console.log(`HTTP server is running on port ${portNumber}`);
+  });
+}
