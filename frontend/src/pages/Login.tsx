@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
+const LAST_PATH_KEY = 'clawpanel_last_path';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -19,10 +20,23 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already authenticated
+  // Get saved path from localStorage (set by ProtectedRoute before redirect)
+  const getSavedPath = (): string | null => {
+    try {
+      return localStorage.getItem(LAST_PATH_KEY);
+    } catch {
+      return null;
+    }
+  };
+
+  // Redirect if already authenticated (to saved path or dashboard)
   useEffect(() => {
     if (isAuth()) {
-      navigate('/dashboard');
+      const savedPath = getSavedPath();
+      // Clean up saved path
+      localStorage.removeItem(LAST_PATH_KEY);
+      // Navigate to saved path or default to dashboard
+      navigate(savedPath || '/dashboard');
     }
   }, [isAuth, navigate]);
 
@@ -46,7 +60,10 @@ export const Login: React.FC = () => {
       if (response.status === 200) {
         // Login successful - save credentials
         login(username, password);
-        navigate('/dashboard');
+        // Navigate to saved path or default to dashboard
+        const savedPath = getSavedPath();
+        localStorage.removeItem(LAST_PATH_KEY);
+        navigate(savedPath || '/dashboard', { replace: true });
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
