@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, RotateCcw, Download, AlertCircle, CheckCircle, Settings as SettingsIcon } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { ConnectionStatus } from '../components/ConnectionStatus';
 import { getConfig, updateConfig } from '../services/config';
 
 type Status = 'idle' | 'loading' | 'saved' | 'unsaved' | 'error';
@@ -148,9 +149,12 @@ export const Settings: React.FC = () => {
           </div>
           
           {/* Status Badge */}
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${getStatusColor()}`}>
-            {getStatusIcon()}
-            <span className="text-sm font-medium">{getStatusText()}</span>
+          <div className="flex items-center gap-3">
+            <ConnectionStatus />
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${getStatusColor()}`}>
+              {getStatusIcon()}
+              <span className="text-sm font-medium">{getStatusText()}</span>
+            </div>
           </div>
         </div>
 

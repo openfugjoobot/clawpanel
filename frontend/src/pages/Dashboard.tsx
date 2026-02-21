@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Activity, 
@@ -13,7 +13,10 @@ import {
   LogOut,
   ArrowRight,
   Github,
-  Settings
+  Settings,
+  Wifi,
+  WifiOff,
+  Zap,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '../components/ui/Card';
@@ -24,77 +27,72 @@ import { getSessions } from '../services/sessions';
 import { getAgents } from '../services/agents';
 import { getCronJobs } from '../services/cron';
 import { useAuth } from '../context/AuthContext';
-import type { GatewayStatus, Session, Agent } from '../types';
+import { DashboardProvider, useDashboard } from '../context/DashboardContext';
+import type { GatewayStatus, Session, Agent, CronJob } from '../types';
 
-interface DashboardData {
-  gateway: GatewayStatus | null;
-  sessions: Session[];
-  agents: Agent[];
-  cronJobs: number;
-}
+// =============================================================================
+// Dashboard Content Component (uses context)
+// =============================================================================
 
 interface DashboardState {
-  data: DashboardData;
-  loading: boolean;
   error: string | null;
-  lastUpdated: Date | null;
+  loading: boolean;
 }
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
+const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
-export const Dashboard: React.FC = () => {
+/**
+ * Inner Dashboard component that uses the Dashboard context
+ */
+const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const 
   const [state, setState] = useState<DashboardState>({
-    data: {
-      gateway: null,
-      sessions: [],
-      agents: [],
-      cronJobs: 0,
-    },
-    loading: true,
     error: null,
-    lastUpdated: null,
+    loading: false,
   });
 
-  const fetchDashboardData = useCallback(async () => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+  // Get data and status from context
+  const {
+    sessions,
+    agents,
+    cronJobs,
+    gatewayStatus,
+    wsConnected,
+    wsConnecting,
+    wsError,
+    liveUpdate,
+    lastUpdateTime,
+    refreshData,
+    reconnectWebSocket,
+  } = useDashboard();
 
+  // Derived state
+  const loading = state.loading || wsConnecting;
+  const error = state.error || wsError;
+
+  // Manual refresh (combines polling fallback)
+  const handleManualRefresh = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const [gatewayData, sessionsData, agentsData, cronJobsData] = await Promise.all([
-        getGatewayStatus().catch(() => null),
-        getSessions().catch(() => []),
-        getAgents().catch(() => []),
-        getCronJobs().catch(() => []),
-      ]);
-
-      setState({
-        data: {
-          gateway: gatewayData,
-          sessions: sessionsData,
-          agents: agentsData,
-          cronJobs: cronJobsData.length,
-        },
-        loading: false,
-        error: null,
-        lastUpdated: new Date(),
-      });
+      await refreshData();
+      setState(prev => ({ ...prev, loading: false }));
     } catch (err) {
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
         loading: false,
-        error: err instanceof Error ? err.message : 'Failed to fetch dashboard data',
+        error: err instanceof Error ? err.message : 'Failed to refresh data',
       }));
     }
-  }, []);
+  }, [refreshData]);
 
-  // Initial fetch and auto-refresh
+  // Auto-refresh every 30 seconds (kept as fallback)
   useEffect(() => {
-    fetchDashboardData();
-    
-    const interval = setInterval(fetchDashboardData, REFRESH_INTERVAL);
+    const interval = setInterval(handleManualRefresh, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [fetchDashboardData]);
+  }, [handleManualRefresh]);
 
   // Format uptime from seconds
   const formatUptime = (seconds: number): string => {
@@ -121,9 +119,15 @@ export const Dashboard: React.FC = () => {
   };
 
   // Count agents by status
-  const runningAgents = state.data.agents.filter(a => a.status === 'running').length;
-  const idleAgents = state.data.agents.filter(a => a.status === 'idle').length;
-  const errorAgents = state.data.agents.filter(a => a.status === 'error').length;
+  const runningAgents = agents.filter(a => a.status === 'running').length;
+  const idleAgents = agents.filter(a => a.status === 'idle').length;
+  const errorAgents = agents.filter(a => a.status === 'error').length;
+
+  // Pulse animation class helper
+  const getPulseClass = (section: 'gateway' | 'sessions' | 'agents' | 'cron') => {
+    if (!liveUpdate) return '';
+    return 'ring-2 ring-blue-500/50 animate-pulse';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -133,27 +137,71 @@ export const Dashboard: React.FC = () => {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">ClawPanel Dashboard</h1>
             {user && <p className="text-sm text-gray-600 mt-1">Welcome back, <span className="font-medium">{user}</span></p>}
-            {state.lastUpdated && (
-              <p className="text-sm text-gray-500 mt-1">
-                Last updated {formatDistanceToNow(state.lastUpdated, { addSuffix: true })}
-              </p>
-            )}
+            <div className="flex items-center gap-3 mt-2">
+              {lastUpdateTime && (
+                <p className="text-sm text-gray-500">
+                  Last updated {formatDistanceToNow(lastUpdateTime, { addSuffix: true })}
+                </p>
+              )}
+              {liveUpdate && (
+                <span className="inline-flex items-center gap-1 text-xs text-blue-600 animate-pulse">
+                  <Zap className="w-3 h-3" />
+                  Live
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* WebSocket Status Indicator */}
+            <div className={`
+              flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium
+              ${wsConnected 
+                ? 'bg-green-100 text-green-700 border border-green-200' 
+                : wsConnecting 
+                  ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                  : 'bg-red-100 text-red-700 border border-red-200'
+              }
+            `}>
+              {wsConnected ? (
+                <Wifi className="w-4 h-4" />
+              ) : (
+                <WifiOff className="w-4 h-4" />
+              )}
+              <span>WebSocket</span>
+              <Badge 
+                variant={wsConnected ? 'success' : wsConnecting ? 'warning' : 'error'} 
+                className="text-xs ml-1"
+              >
+                {wsConnected ? 'Connected' : wsConnecting ? 'Connecting...' : 'Disconnected'}
+              </Badge>
+            </div>
+
             <Button 
               variant="outline" 
-              onClick={fetchDashboardData}
-              disabled={state.loading}
+              onClick={handleManualRefresh}
+              disabled={loading}
               className="flex items-center gap-2"
             >
-              {state.loading ? (
+              {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}
               Refresh
             </Button>
-            <Badge variant="success">Online</Badge>
+
+            {/* Reconnect button if disconnected */}
+            {!wsConnected && !wsConnecting && (
+              <Button
+                variant="primary"
+                onClick={reconnectWebSocket}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <Wifi className="w-4 h-4" />
+                Reconnect
+              </Button>
+            )}
+
             <Button 
               variant="secondary" 
               onClick={logout}
@@ -166,14 +214,14 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Error Alert */}
-        {state.error && (
+        {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
               <h3 className="font-medium text-red-800">Error loading dashboard data</h3>
-              <p className="text-sm text-red-600 mt-1">{state.error}</p>
+              <p className="text-sm text-red-600 mt-1">{error}</p>
               <button 
-                onClick={fetchDashboardData}
+                onClick={handleManualRefresh}
                 className="text-sm text-red-700 underline mt-2 hover:text-red-800"
               >
                 Try again
@@ -192,27 +240,27 @@ export const Dashboard: React.FC = () => {
                 Gateway Status
               </div>
             }
-            className="relative overflow-hidden"
+            className={`relative overflow-hidden transition-all duration-300 ${getPulseClass('gateway')}`}
           >
             <div className="p-1">
               <div className="flex items-center gap-3 mb-3">
-                {getGatewayStatusIcon(state.data.gateway?.status)}
+                {getGatewayStatusIcon(gatewayStatus?.status)}
                 <span className={`text-lg font-semibold capitalize ${
-                  state.data.gateway?.status === 'online' ? 'text-green-600' : 
-                  state.data.gateway?.status === 'offline' ? 'text-red-600' : 
-                  state.data.gateway?.status === 'error' ? 'text-red-600' : 'text-gray-500'
+                  gatewayStatus?.status === 'online' ? 'text-green-600' : 
+                  gatewayStatus?.status === 'offline' ? 'text-red-600' : 
+                  gatewayStatus?.status === 'error' ? 'text-red-600' : 'text-gray-500'
                 }`}>
-                  {state.data.gateway?.status || 'Loading...'}
+                  {gatewayStatus?.status || 'Loading...'}
                 </span>
               </div>
-              {state.data.gateway && (
+              {gatewayStatus && (
                 <div className="space-y-1 text-sm text-gray-600">
-                  <p>Version: <span className="font-medium">{state.data.gateway.version}</span></p>
-                  <p>PID: <span className="font-medium">{state.data.gateway.pid}</span></p>
-                  <p>Uptime: <span className="font-medium">{formatUptime(state.data.gateway.uptime)}</span></p>
+                  <p>Version: <span className="font-medium">{gatewayStatus.version}</span></p>
+                  <p>PID: <span className="font-medium">{gatewayStatus.pid}</span></p>
+                  <p>Uptime: <span className="font-medium">{formatUptime(gatewayStatus.uptime)}</span></p>
                 </div>
               )}
-              {!state.data.gateway && !state.loading && (
+              {!gatewayStatus && !loading && (
                 <p className="text-sm text-gray-500">Gateway data unavailable</p>
               )}
             </div>
@@ -226,19 +274,19 @@ export const Dashboard: React.FC = () => {
                 Active Sessions
               </div>
             }
-            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            className={`cursor-pointer hover:shadow-lg transition-shadow group transition-all duration-300 ${getPulseClass('sessions')}`}
             onClick={() => navigate('/sessions')}
           >
             <div className="p-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-gray-900">
-                  {state.loading ? '-' : state.data.sessions.length}
+                  {loading ? '-' : sessions.length}
                 </span>
                 <span className="text-sm text-gray-500">sessions</span>
               </div>
-              {state.data.sessions.length > 0 && (
+              {sessions.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {state.data.sessions.slice(0, 3).map((session) => (
+                  {sessions.slice(0, 3).map((session) => (
                     <div key={session.key} className="flex justify-between text-sm">
                       <span className="text-gray-600 truncate max-w-[120px]">{session.id}</span>
                       <span className="text-gray-400">
@@ -246,9 +294,9 @@ export const Dashboard: React.FC = () => {
                       </span>
                     </div>
                   ))}
-                  {state.data.sessions.length > 3 && (
+                  {sessions.length > 3 && (
                     <p className="text-xs text-gray-400 mt-2">
-                      +{state.data.sessions.length - 3} more sessions
+                      +{sessions.length - 3} more sessions
                     </p>
                   )}
                 </div>
@@ -268,13 +316,13 @@ export const Dashboard: React.FC = () => {
                 Agents
               </div>
             }
-            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            className={`cursor-pointer hover:shadow-lg transition-shadow group transition-all duration-300 ${getPulseClass('agents')}`}
             onClick={() => navigate('/agents')}
           >
             <div className="p-1">
               <div className="flex items-baseline gap-2 mb-3">
                 <span className="text-3xl font-bold text-gray-900">
-                  {state.loading ? '-' : state.data.agents.length}
+                  {loading ? '-' : agents.length}
                 </span>
                 <span className="text-sm text-gray-500">total</span>
               </div>
@@ -307,13 +355,13 @@ export const Dashboard: React.FC = () => {
                 Cron Jobs
               </div>
             }
-            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            className={`cursor-pointer hover:shadow-lg transition-shadow group transition-all duration-300 ${getPulseClass('cron')}`}
             onClick={() => navigate('/cron')}
           >
             <div className="p-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-gray-900">
-                  {state.loading ? '-' : state.data.cronJobs}
+                  {loading ? '-' : cronJobs.length}
                 </span>
                 <span className="text-sm text-gray-500">jobs</span>
               </div>
@@ -342,7 +390,7 @@ export const Dashboard: React.FC = () => {
             <div className="p-1">
               <div className="flex items-baseline gap-2 mb-3">
                 <span className="text-2xl font-bold text-gray-900">
-                  Issues & PRs
+                  Issues &amp; PRs
                 </span>
               </div>
               <div className="mt-4 p-3 bg-gray-50 rounded text-center">
@@ -385,33 +433,57 @@ export const Dashboard: React.FC = () => {
           </Card>
         </div>
 
-        {/* Legacy Content (for reference) */}
-        <div className="mt-8">
+        {/* WebSocket Status Footer */}
+        <div className="mt-8" data-testid="websocket-status">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card title="System Status">
+            <Card title="WebSocket Status">
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">
-                  API Server: 
-                  <span className={`font-medium ml-1 ${state.error ? 'text-red-600' : 'text-green-600'}`}>
-                    {state.error ? 'Error' : 'Running'}
+                  Connection: 
+                  <span className={`font-medium ml-1 ${
+                    wsConnected ? 'text-green-600' : 
+                    wsConnecting ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {wsConnected ? 'Connected' : 
+                     wsConnecting ? 'Connecting...' : 'Disconnected'}
                   </span>
                 </p>
                 <p className="text-sm text-gray-600">
-                  WebSocket: 
-                  <span className="text-gray-400 font-medium">Not implemented</span>
+                  Live Updates: 
+                  <span className={`font-medium ml-1 ${
+                    wsConnected ? 'text-green-600' : 'text-gray-400'
+                  }`}>
+                    {wsConnected ? 'Enabled' : 'Disabled'}
+                  </span>
                 </p>
                 <p className="text-sm text-gray-600">
                   Auto-refresh: 
-                  <span className="text-green-600 font-medium">Active (30s)</span>
+                  <span className="text-green-600 font-medium">Active (30s fallback)</span>
                 </p>
               </div>
             </Card>
 
             <Card title="Quick Actions">
               <div className="space-y-3">
-                <Button variant="primary" className="w-full" onClick={fetchDashboardData}>
+                <Button 
+                  variant="primary" 
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={handleManualRefresh}
+                  disabled={loading}
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   Refresh Data
                 </Button>
+                {!wsConnected && (
+                  <Button 
+                    variant="secondary" 
+                    className="w-full flex items-center justify-center gap-2"
+                    onClick={reconnectWebSocket}
+                  >
+                    <Wifi className="w-4 h-4" />
+                    Reconnect WebSocket
+                  </Button>
+                )}
                 <Button variant="outline" className="w-full" disabled>
                   View Logs
                 </Button>
@@ -431,3 +503,79 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
+// =============================================================================
+// Main Dashboard Container (Provider wrapper)
+// =============================================================================
+
+/**
+ * Fetches initial data for the dashboard
+ */
+const fetchInitialData = async (): Promise<{
+  sessions: Session[];
+  agents: Agent[];
+  cronJobs: CronJob[];
+  gateway: GatewayStatus | null;
+}> => {
+  const [gatewayData, sessionsData, agentsData, cronJobsData] = await Promise.allSettled([
+    getGatewayStatus(),
+    getSessions(),
+    getAgents(),
+    getCronJobs(),
+  ]);
+
+  return {
+    gateway: gatewayData.status === 'fulfilled' ? gatewayData.value : null,
+    sessions: sessionsData.status === 'fulfilled' ? sessionsData.value : [],
+    agents: agentsData.status === 'fulfilled' ? agentsData.value : [],
+    cronJobs: cronJobsData.status === 'fulfilled' ? cronJobsData.value : [],
+  };
+};
+
+/**
+ * Dashboard component with WebSocket support
+ * Wraps DashboardContent with DashboardProvider
+ */
+export const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+
+  // WebSocket URL from config
+  const wsUrl = useMemo(() => {
+    // Convert HTTP endpoint to WSS/WS
+    return API_BASE_URL.replace(/^https?:\/\//, (match) => 
+      match.startsWith('https') ? 'wss://' : 'ws://'
+    ) + '/ws';
+  }, []);
+
+  // WebSocket credentials from localStorage or environment
+  const wsCredentials = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('clawpanel_auth');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          username: parsed.username || 'admin',
+          password: parsed.password || '',
+        };
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return {
+      username: 'admin',
+      password: '',
+    };
+  }, []);
+
+  return (
+    <DashboardProvider
+      wsUrl={wsUrl}
+      wsCredentials={wsCredentials}
+      initialLoad={fetchInitialData}
+    >
+      <DashboardContent />
+    </DashboardProvider>
+  );
+};
+
+export default Dashboard;

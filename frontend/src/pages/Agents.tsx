@@ -15,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { ConnectionStatus } from '../components/ConnectionStatus';
 import { getAgents, spawnAgent, killAgent } from '../services/agents';
 import type { Agent } from '../types';
 
@@ -331,6 +332,7 @@ export const Agents: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ConnectionStatus />
             {isLoading && (
               <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
             )}

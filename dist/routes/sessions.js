@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const openclaw_1 = require("../services/openclaw");
+const broadcaster_1 = require("../websocket/broadcaster");
 const router = (0, express_1.Router)();
 /**
  * GET /api/sessions
@@ -33,6 +34,14 @@ router.post('/:key/kill', async (req, res) => {
             });
         }
         const result = await (0, openclaw_1.killSession)(key);
+        // Extract agent ID from session key (format: agent:<agentId>:<timestamp>)
+        const agentId = key.startsWith('agent:') ? key.split(':')[1] : undefined;
+        // Broadcast session killed event
+        (0, broadcaster_1.broadcastSessionKilled)(key, agentId);
+        // Broadcast agent status if we have an agent ID
+        if (agentId) {
+            (0, broadcaster_1.broadcastAgentStatus)(agentId, 'idle', 0);
+        }
         res.json(result);
     }
     catch (error) {

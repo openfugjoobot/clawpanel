@@ -14,6 +14,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { ConnectionStatus } from '../components/ConnectionStatus';
 import { getIssues, getPRs } from '../services/github';
 import type { GitHubIssue, GitHubPullRequest } from '../types';
 
@@ -139,6 +140,7 @@ export const GitHub: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ConnectionStatus />
             <select
               value={selectedRepo}
               onChange={(e) => setSelectedRepo(Number(e.target.value))}

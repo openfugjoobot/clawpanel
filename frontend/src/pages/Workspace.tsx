@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Folder, FileText, ArrowLeft, HardDrive, RefreshCw, Loader2, Download } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { ConnectionStatus } from '../components/ConnectionStatus';
 import { getFiles, type FileItem } from '../services/workspace';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -73,6 +74,7 @@ export const Workspace: React.FC = () => {
             <p className="text-sm text-gray-600 mt-1">Browse files and directories</p>
           </div>
           <div className="flex items-center gap-3">
+            <ConnectionStatus />
             <Button variant="outline" onClick={() => loadFiles(currentPath)} disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
