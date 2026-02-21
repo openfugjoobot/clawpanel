@@ -8,6 +8,7 @@ import { Agents } from './pages/Agents';
 import { Cron } from './pages/Cron';
 import { GitHub } from './pages/GitHub';
 import { Workspace } from './pages/Workspace';
+import { Settings } from './pages/Settings';
 
 function App() {
   return (
@@ -73,6 +74,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Workspace />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Settings route - protected */}
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } 
           />

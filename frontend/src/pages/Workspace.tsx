@@ -94,7 +94,7 @@ export const Workspace: React.FC = () => {
               ) : (
                 <span className="text-blue-600">{crumb}</span>
               )}
-              {idx < breadcrumbs.length - 1 &&&& <span className="text-gray-400">/</span>}
+              {idx < breadcrumbs.length - 1 && <span className="text-gray-400">/</span>}
             </React.Fragment>
           ))}
         </div>
@@ -118,7 +118,7 @@ export const Workspace: React.FC = () => {
           </div>
 
           {/* Error */}
-          {error &&&& (
+          {error && (
             <div className="p-4 bg-red-50 border-b border-red-200 text-red-700">
               {error}
             </div>
@@ -155,7 +155,7 @@ export const Workspace: React.FC = () => {
                   </div>
                   <div className="text-right text-sm text-gray-500">
                     <p>{formatDistanceToNow(new Date(file.modifiedAt), { addSuffix: true })}</p>
-                    {file.type === 'file' &&&& (
+                    {file.type === 'file' && (
                       <p className="text-xs text-blue-600 flex items-center gap-1 justify-end">
                         <Download className="w-3 h-3" />
                         Click to view

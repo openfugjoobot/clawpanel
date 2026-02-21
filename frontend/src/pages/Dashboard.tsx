@@ -13,7 +13,8 @@ import {
   LogOut,
   ArrowRight,
   Github,
-  FolderOpen
+  FolderOpen,
+  Settings
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '../components/ui/Card';
@@ -350,6 +351,34 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
                 <span>View repository</span>
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </Card>
+
+          {/* Settings Card */}
+          <Card
+            title={
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Config
+              </div>
+            }
+            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            onClick={() => navigate('/settings')}
+          >
+            <div className="p-1">
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="text-2xl font-bold text-gray-900">
+                  Settings
+                </span>
+              </div>
+              <div className="mt-4 p-3 bg-gray-50 rounded text-center">
+                <p className="text-sm text-gray-500">openclaw.json</p>
+                <p className="text-xs text-gray-400 mt-1">Edit configuration</p>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
+                <span>View settings</span>
                 <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
