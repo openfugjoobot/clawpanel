@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Sessions } from './pages/Sessions';
 import { Agents } from './pages/Agents';
+import { Cron } from './pages/Cron';
 
 function App() {
   return (
@@ -40,6 +41,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Agents />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Cron Jobs route - protected */}
+          <Route 
+            path="/cron" 
+            element={
+              <ProtectedRoute>
+                <Cron />
               </ProtectedRoute>
             } 
           />

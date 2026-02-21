@@ -20,6 +20,7 @@ import { Button } from '../components/ui/Button';
 import { getGatewayStatus } from '../services/gateway';
 import { getSessions } from '../services/sessions';
 import { getAgents } from '../services/agents';
+import { getCronJobs } from '../services/cron';
 import { useAuth } from '../context/AuthContext';
 import type { GatewayStatus, Session, Agent } from '../types';
 
@@ -58,10 +59,11 @@ export const Dashboard: React.FC = () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      const [gatewayData, sessionsData, agentsData] = await Promise.all([
+      const [gatewayData, sessionsData, agentsData, cronJobsData] = await Promise.all([
         getGatewayStatus().catch(() => null),
         getSessions().catch(() => []),
         getAgents().catch(() => []),
+        getCronJobs().catch(() => []),
       ]);
 
       setState({
@@ -69,7 +71,7 @@ export const Dashboard: React.FC = () => {
           gateway: gatewayData,
           sessions: sessionsData,
           agents: agentsData,
-          cronJobs: 0, // Placeholder for future cron jobs API
+          cronJobs: cronJobsData.length,
         },
         loading: false,
         error: null,
@@ -302,6 +304,8 @@ export const Dashboard: React.FC = () => {
                 Cron Jobs
               </div>
             }
+            className="cursor-pointer hover:shadow-lg transition-shadow group"
+            onClick={() => navigate('/cron')}
           >
             <div className="p-1">
               <div className="flex items-baseline gap-2">
@@ -312,7 +316,11 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="mt-4 p-3 bg-gray-50 rounded text-center">
                 <p className="text-sm text-gray-500">Scheduled tasks</p>
-                <p className="text-xs text-gray-400 mt-1">Coming soon</p>
+                <p className="text-xs text-gray-400 mt-1">Manage cron jobs</p>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
+                <span>View all jobs</span>
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           </Card>
