@@ -206,14 +206,14 @@ const getStatusBadgeVariant = (
   }
 };
 
-// Helper to extract emoji from agent name or metadata
+// Helper to extract emoji from agent
 const getAgentEmoji = (agent: Agent): string => {
-  // Check metadata first
-  if (agent.metadata?.emoji) {
-    return agent.metadata.emoji as string;
+  // Use identityEmoji if available
+  if (agent.identityEmoji) {
+    return agent.identityEmoji;
   }
   // Default emojis based on agent name patterns
-  const name = agent.name.toLowerCase();
+  const name = agent.identityName.toLowerCase();
   if (name.includes('frontend')) return '🎨';
   if (name.includes('backend')) return '⚙️';
   if (name.includes('dev')) return '💻';
@@ -223,14 +223,14 @@ const getAgentEmoji = (agent: Agent): string => {
   return '🤖';
 };
 
-// Helper to get model info (from metadata)
+// Helper to get model info
 const getAgentModel = (agent: Agent): string => {
-  return (agent.metadata?.model as string) || 'default';
+  return agent.model || 'default';
 };
 
-// Helper to get workspace info (from metadata)
+// Helper to get workspace info
 const getAgentWorkspace = (agent: Agent): string => {
-  return (agent.metadata?.workspace as string) || 'default';
+  return agent.workspace || 'default';
 };
 
 export const Agents: React.FC = () => {
@@ -409,7 +409,7 @@ export const Agents: React.FC = () => {
                           {getAgentEmoji(agent)}
                         </span>
                         <span className="text-sm text-gray-700 font-medium">
-                          {agent.name}
+                          {agent.identityName}
                         </span>
                       </div>
                     </td>
@@ -512,7 +512,7 @@ export const Agents: React.FC = () => {
         isOpen={!!agentToSpawn}
         onClose={handleCancelSpawn}
         onConfirm={handleConfirmSpawn}
-        agentName={agentToSpawn?.name || ''}
+        agentName={agentToSpawn?.identityName || ''}
         agentId={agentToSpawn?.id || ''}
         isLoading={spawnMutation.isPending}
       />
@@ -522,7 +522,7 @@ export const Agents: React.FC = () => {
         isOpen={!!agentToKill}
         onClose={handleCancelKill}
         onConfirm={handleConfirmKill}
-        agentName={agentToKill?.name || ''}
+        agentName={agentToKill?.identityName || ''}
         agentId={agentToKill?.id || ''}
         isLoading={killMutation.isPending}
         action="kill"

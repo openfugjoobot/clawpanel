@@ -24,8 +24,11 @@ export interface Session {
 // Agent Interface
 export interface Agent {
   id: string;
-  name: string;
+  identityName: string;
+  identityEmoji?: string;
   status: 'idle' | 'running' | 'error' | 'completed';
+  model?: string;
+  workspace?: string;
   createdAt: string;
   updatedAt: string;
   task?: string;
