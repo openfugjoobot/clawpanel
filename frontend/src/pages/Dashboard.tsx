@@ -141,16 +141,17 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {state.loading && (
-              <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-            )}
             <Button 
               variant="outline" 
               onClick={fetchDashboardData}
               disabled={state.loading}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 ${state.loading ? 'animate-spin' : ''}`} />
+              {state.loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
               Refresh
             </Button>
             <Badge variant="success">Online</Badge>
