@@ -10,8 +10,8 @@ import type { CronJob, CreateCronJobPayload } from '../types';
  * @returns Promise with array of cron jobs
  */
 export const getCronJobs = async (): Promise<CronJob[]> => {
-  const response = await apiClient.get<CronJob[]>('/cron');
-  return response.data;
+  const response = await apiClient.get<{ jobs: CronJob[] }>('/cron');
+  return response.data.jobs;
 };
 
 /**
