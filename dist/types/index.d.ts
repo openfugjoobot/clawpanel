@@ -16,4 +16,13 @@ export interface Session {
     totalTokens: number;
     contextTokens: number;
 }
+export interface Agent {
+    id: string;
+    identityName: string;
+    identityEmoji: string;
+    workspace: string;
+    model: string;
+    isDefault: boolean;
+    heartbeat: any;
+}
 //# sourceMappingURL=index.d.ts.map

@@ -7,6 +7,7 @@ import gatewayRoutes from './routes/gateway';
 import sessionsRoutes from './routes/sessions';
 import agentsRoutes from './routes/agents';
 import cronRoutes from './routes/cron';
+import workspaceRoutes from './routes/workspace';
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +39,9 @@ app.use('/api/agents', agentsRoutes);
 
 // Mount cron routes
 app.use('/api/cron', cronRoutes);
+
+// Mount workspace routes
+app.use('/api', workspaceRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

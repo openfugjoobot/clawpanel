@@ -3,6 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.gatewayHealth = gatewayHealth;
 exports.listSessions = listSessions;
 exports.killSession = killSession;
+exports.listAgents = listAgents;
+exports.spawnAgent = spawnAgent;
+exports.killAgent = killAgent;
 const child_process_1 = require("child_process");
 const util_1 = require("util");
 const execPromise = (0, util_1.promisify)(child_process_1.exec);
@@ -98,6 +101,117 @@ async function killSession(key) {
         }
         // Generic error handling
         throw new Error(`Failed to kill session: ${error.message || error}`);
+    }
+}
+/**
+ * List all agents by executing "openclaw agents list --json"
+ * @returns Promise<Agent[]> - Array of agent objects
+ */
+async function listAgents() {
+    try {
+        // Execute the openclaw agents list command with JSON output
+        const { stdout, stderr } = await execPromise('openclaw agents list --json');
+        if (stderr) {
+            throw new Error(`Agents command error: ${stderr}`);
+        }
+        // Parse the JSON output
+        const agentsData = JSON.parse(stdout);
+        // Map the agent data to our Agent interface
+        const agents = agentsData.map((agent) => ({
+            id: agent.id,
+            identityName: agent.identityName,
+            identityEmoji: agent.identityEmoji,
+            workspace: agent.workspace,
+            model: agent.model,
+            isDefault: agent.isDefault,
+            heartbeat: agent.heartbeat
+        }));
+        return agents;
+    }
+    catch (error) {
+        // Handle case when openclaw CLI is not found or command fails
+        if (error.code === 'ENOENT') {
+            throw new Error('OpenClaw CLI not found. Is it installed?');
+        }
+        // Check if it's a JSON parsing error
+        if (error instanceof SyntaxError) {
+            throw new Error('Invalid JSON response from agents command');
+        }
+        // Generic error handling
+        throw new Error(`Failed to list agents: ${error.message || error}`);
+    }
+}
+/**
+ * Spawn a new agent session by executing "openclaw agent --agent <agentId> --message <task>"
+ * @param agentId string - Agent ID to spawn
+ * @param task string - Task for the agent to perform
+ * @returns Promise<{sessionKey: string}> - Session key of the spawned agent
+ */
+async function spawnAgent(agentId, task) {
+    try {
+        // Execute the openclaw agent command with JSON output
+        const { stdout, stderr } = await execPromise(`openclaw agent --agent ${agentId} --message "${task}" --json`);
+        if (stderr) {
+            throw new Error(`Spawn agent command error: ${stderr}`);
+        }
+        // Parse the JSON output
+        const result = JSON.parse(stdout);
+        // Extract session key from the result if available
+        const sessionKey = result.result?.meta?.agentMeta?.sessionKey || 'unknown';
+        return { sessionKey };
+    }
+    catch (error) {
+        // Handle case when openclaw CLI is not found or command fails
+        if (error.code === 'ENOENT') {
+            throw new Error('OpenClaw CLI not found. Is it installed?');
+        }
+        // Check if it's a JSON parsing error
+        if (error instanceof SyntaxError) {
+            throw new Error('Invalid JSON response from agent spawn command');
+        }
+        // Generic error handling
+        throw new Error(`Failed to spawn agent: ${error.message || error}`);
+    }
+}
+/**
+ * Kill all sessions for a specific agent
+ * Note: This is a simplified implementation that kills sessions based on pattern matching
+ * @param agentId string - Agent ID to kill
+ * @returns Promise<void> - Resolves when operation completes
+ */
+async function killAgent(agentId) {
+    try {
+        // Execute the openclaw sessions list command to get all sessions
+        const { stdout, stderr } = await execPromise('openclaw sessions --json');
+        if (stderr) {
+            throw new Error(`List sessions command error: ${stderr}`);
+        }
+        // Parse the JSON output
+        const sessionsData = JSON.parse(stdout);
+        // Find sessions that belong to the specified agent
+        const agentSessions = sessionsData.sessions.filter((session) => session.key.startsWith(`agent:${agentId}:`));
+        // Kill each session for the agent
+        for (const session of agentSessions) {
+            try {
+                await execPromise(`openclaw sessions kill ${session.key}`);
+            }
+            catch (error) {
+                // Log error but continue with other sessions
+                console.warn(`Failed to kill session ${session.key}:`, error);
+            }
+        }
+    }
+    catch (error) {
+        // Handle case when openclaw CLI is not found or command fails
+        if (error.code === 'ENOENT') {
+            throw new Error('OpenClaw CLI not found. Is it installed?');
+        }
+        // Check if it's a JSON parsing error
+        if (error instanceof SyntaxError) {
+            throw new Error('Invalid JSON response from sessions command');
+        }
+        // Generic error handling
+        throw new Error(`Failed to kill agent: ${error.message || error}`);
     }
 }
 //# sourceMappingURL=openclaw.js.map

@@ -10,6 +10,9 @@ const auth_1 = require("./middleware/auth");
 const error_1 = require("./middleware/error");
 const gateway_1 = __importDefault(require("./routes/gateway"));
 const sessions_1 = __importDefault(require("./routes/sessions"));
+const agents_1 = __importDefault(require("./routes/agents"));
+const cron_1 = __importDefault(require("./routes/cron"));
+const workspace_1 = __importDefault(require("./routes/workspace"));
 // Load environment variables
 dotenv_1.default.config();
 // Create Express app
@@ -28,6 +31,12 @@ app.use('/api', auth_1.authMiddleware);
 app.use('/api/gateway', gateway_1.default);
 // Mount sessions routes
 app.use('/api/sessions', sessions_1.default);
+// Mount agents routes
+app.use('/api/agents', agents_1.default);
+// Mount cron routes
+app.use('/api/cron', cron_1.default);
+// Mount workspace routes
+app.use('/api', workspace_1.default);
 // Global error handler (must be after all routes)
 app.use(error_1.errorHandler);
 // Start server
