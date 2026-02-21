@@ -169,6 +169,7 @@ export const Login: React.FC = () => {
           <p className="text-center text-xs text-gray-400 mt-6">
             ClawPanel v1.0.0
           </p>
+        </div>
       </div>
     </div>
   );
