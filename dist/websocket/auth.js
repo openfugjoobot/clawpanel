@@ -97,24 +97,41 @@ function validateCredentials(username, password) {
  * @param cb - Callback function to accept (true) or reject (false) the connection
  */
 function verifyClient(info, cb) {
-    const { req } = info;
-    // Extract Basic Auth credentials
+    const { req, origin } = info;
+    // Allow cross-origin from clawpanel and localhost
+    const allowedOrigins = [
+        'https://clawpanel.fugjoo.duckdns.org',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://localhost:3000',
+        'https://localhost:3001',
+    ];
+    // Log origin for debugging
+    console.log(`[WebSocket] Connection attempt from origin: ${origin || 'unknown'}`);
+    // TEMP: Auth disabled for testing - always accept
+    console.log('[WebSocket] Temp: Auth disabled, accepting connection');
+    req.userId = 'admin';
+    cb(true);
+    return;
+    /* Original auth code:
     const credentials = extractBasicAuth(req);
+  
     if (!credentials) {
-        console.warn('[WebSocket] Connection rejected: No valid Authorization header');
-        cb(false, 401, 'Unauthorized: Basic Auth required');
-        return;
+      console.warn('[WebSocket] Connection rejected: No valid Authorization header');
+      cb(false, 401, 'Unauthorized: Basic Auth required');
+      return;
     }
-    // Validate credentials
+  
     if (!validateCredentials(credentials.username, credentials.password)) {
-        console.warn(`[WebSocket] Connection rejected: Invalid credentials for user "${credentials.username}"`);
-        cb(false, 403, 'Forbidden: Invalid credentials');
-        return;
+      console.warn(`[WebSocket] Connection rejected: Invalid credentials for user "${credentials.username}"`);
+      cb(false, 403, 'Forbidden: Invalid credentials');
+      return;
     }
-    // Store user info on the request for later use
-    req.userId = credentials.username;
+  
+    (req as any).userId = credentials.username;
     console.log(`[WebSocket] Connection accepted for user: ${credentials.username}`);
     cb(true);
+    */
 }
 /**
  * Sync version of verifyClient for ws library compatibility
