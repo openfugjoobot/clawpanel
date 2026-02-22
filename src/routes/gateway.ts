@@ -1,17 +1,21 @@
 import { Router, Request, Response } from 'express';
 import { gatewayHealth } from '../services/openclaw';
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { broadcastGatewayStatus } from '../websocket/broadcaster';
 
 const router = Router();
+const execFilePromise = promisify(execFile);
 
 /**
  * Get OpenClaw gateway version
  */
-const getGatewayVersion = (): string => {
+const getGatewayVersion = async (): Promise<string> => {
   try {
-    const version = execSync('openclaw --version', { encoding: 'utf-8', timeout: 5000 });
-    return version.trim();
+    const { stdout } = await execFilePromise('openclaw', ['--version'], { 
+      timeout: 5000 
+    });
+    return stdout.trim();
   } catch {
     return 'unknown';
   }
@@ -19,21 +23,18 @@ const getGatewayVersion = (): string => {
 
 /**
  * GET /api/gateway/status
- * Get gateway health status - transforms raw gateway data to GatewayStatus format
+ * Get gateway health status
  */
 router.get('/status', async (req: Request, res: Response) => {
   try {
     const health: any = await gatewayHealth();
-    const version = getGatewayVersion();
+    const version = await getGatewayVersion();
     
-    // Transform gateway response to GatewayStatus format
     const status = health.ok ? 'running' : 'error';
     const gatewayStatus = {
       status,
       version: version,
       pid: process.pid,
-      // Note: OpenClaw doesn't expose real uptime, so we skip this field
-      // The 'ts' field is just the health check timestamp, not start time
       raw: health
     };
     
@@ -42,15 +43,13 @@ router.get('/status', async (req: Request, res: Response) => {
     
     res.json(gatewayStatus);
   } catch (error: any) {
-    // Broadcast error status
     broadcastGatewayStatus('error', 'unknown');
     
     res.status(503).json({ 
       status: 'error',
       version: 'unknown',
       pid: 0,
-      error: 'Gateway unavailable',
-      message: error.message 
+      error: 'Gateway unavailable'
     });
   }
 });
@@ -61,21 +60,20 @@ router.get('/status', async (req: Request, res: Response) => {
  */
 router.post('/restart', async (req: Request, res: Response) => {
   try {
-    // Get current version before restart
-    const version = getGatewayVersion();
+    const version = await getGatewayVersion();
     
     // Broadcast stopping status before restart
     broadcastGatewayStatus('stopped', version);
     
-    // Execute the openclaw gateway restart command
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
-    const execPromise = promisify(exec);
-    
-    const { stdout, stderr } = await execPromise('openclaw gateway restart');
+    // Execute the openclaw gateway restart command securely
+    const { stdout, stderr } = await execFilePromise(
+      'openclaw', 
+      ['gateway', 'restart'],
+      { timeout: 30000 }
+    );
     
     if (stderr) {
-      throw new Error(stderr);
+      console.error('[Gateway] Restart stderr:', stderr);
     }
     
     // Broadcast running status after restart
@@ -86,12 +84,11 @@ router.post('/restart', async (req: Request, res: Response) => {
       output: stdout 
     });
   } catch (error: any) {
-    // Broadcast error status
     broadcastGatewayStatus('error', 'unknown');
     
+    console.error('[Gateway] Restart failed:', error);
     res.status(500).json({ 
-      error: 'Failed to restart gateway',
-      message: error.message 
+      error: 'Failed to restart gateway'
     });
   }
 });

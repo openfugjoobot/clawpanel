@@ -65,8 +65,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Public auth routes (no auth required)
-app.use('/api/auth', authRoutes);
+// Public auth routes (no auth required) - apply strict rate limiting
+app.use('/api/auth', strictLimiter, authRoutes);
 
 // Apply authentication middleware to all /api routes
 app.use('/api', authMiddleware);
@@ -83,8 +83,8 @@ app.use('/api/agents', strictLimiter, agentsRoutes);
 // Mount cron routes - apply strict rate limiting
 app.use('/api/cron', strictLimiter, cronRoutes);
 
-// Mount config routes
-app.use('/api/config', configRoutes);
+// Mount config routes - apply strict rate limiting for writes
+app.use('/api/config', strictLimiter, configRoutes);
 
 // Mount github routes
 app.use('/api/github', githubRoutes);
