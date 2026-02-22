@@ -1,18 +1,24 @@
 /**
  * AuthContext - Authentication state management
+ * 
+ * SECURITY WARNING:
+ * - localStorage is vulnerable to XSS attacks
+ * - Credentials are stored in plaintext in localStorage
+ * - For production: use HTTP-only cookies with secure token refresh
+ * - This implementation is for demo/development purposes only
  */
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 interface AuthState {
   user: string | null;
   token: string | null;
-  credentials: string | null; // Base64 encoded username:password for WebSocket
 }
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => boolean;
   logout: () => void;
   isAuth: () => boolean;
+  getCredentials: () => { username: string; password: string } | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,7 +33,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [auth, setAuth] = useState<AuthState>({
     user: null,
     token: null,
-    credentials: null,
   });
 
   // Load auth from localStorage on mount
@@ -39,9 +44,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setAuth({
           user: parsed.user || null,
           token: parsed.token || null,
-          credentials: parsed.credentials || null,
         });
       } catch {
+        // Invalid stored data - clear it
         localStorage.removeItem(STORAGE_KEY);
       }
     }
@@ -52,20 +57,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * @returns true on success, false on failure
    */
   const login = (username: string, password: string): boolean => {
+    // Validate input
     if (!username || !password) {
+      return false;
+    }
+    
+    // Basic sanitization
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      return false;
+    }
+    
+    // Check for reasonable length
+    if (username.length > 100 || password.length > 100) {
       return false;
     }
 
     // Create Basic Auth token
     const credentials = `${username}:${password}`;
     const token = 'Basic ' + btoa(credentials);
-    const encodedCredentials = btoa(credentials); // For WebSocket
 
     // Save to state and localStorage
     const authData: AuthState = {
       user: username,
       token,
-      credentials: encodedCredentials,
     };
 
     setAuth(authData);
@@ -80,7 +94,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuth({
       user: null,
       token: null,
-      credentials: null,
     });
     localStorage.removeItem(STORAGE_KEY);
   };
@@ -91,9 +104,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isAuth = (): boolean => {
     return !!auth.token;
   };
+  
+  /**
+   * Get credentials for WebSocket connection
+   * Returns null if not authenticated
+   * SECURITY: Only use this for WebSocket header auth, never for URLs!
+   */
+  const getCredentials = (): { username: string; password: string } | null => {
+    if (!auth.token) return null;
+    
+    try {
+      // Decode Basic Auth token
+      const base64 = auth.token.replace('Basic ', '');
+      const decoded = atob(base64);
+      const [username, ...passwordParts] = decoded.split(':');
+      const password = passwordParts.join(':');
+      
+      if (!username || !password) return null;
+      
+      return { username, password };
+    } catch {
+      return null;
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout, isAuth }}>
+    <AuthContext.Provider value={{ ...auth, login, logout, isAuth, getCredentials }}>
       {children}
     </AuthContext.Provider>
   );

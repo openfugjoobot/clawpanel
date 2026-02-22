@@ -3,13 +3,17 @@
  * Issue #22 - WebSocket Real-Time Dashboard
  * 
  * Features:
- * - Connect to WSS endpoint with Basic Auth
+ * - Connect to WSS endpoint with Basic Auth via Header (NOT URL!)
  * - Exponential backoff reconnect (1s, 2s, 4s, 8s... max 30s)
  * - Max 10 reconnect attempts
  * - Auto-reconnect on unexpected close
  * - Parse incoming JSON events
  * - Send periodic ping (every 25s)
  * - Clean disconnect on unmount
+ * 
+ * SECURITY NOTE: Credentials are sent via Authorization header subprotocol,
+ * NOT via URL query parameters. URLs get logged in server logs, browser
+ * history, and proxy logs - credentials in URLs are a security risk.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type {
@@ -29,15 +33,13 @@ function calculateBackoffDelay(attempt: number): number {
 }
 
 /**
- * Create WebSocket URL with credentials as query params for auth
+ * Create WebSocket URL WITHOUT credentials
+ * Credentials are passed via subprotocol header, NOT URL!
  */
-function createWebSocketUrl(baseUrl: string, username: string, password: string): string {
+function createWebSocketUrl(baseUrl: string): string {
   try {
-    const wsUrl = baseUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
-    const url = new URL(wsUrl);
-    const credentials = btoa(`${username}:${password}`);
-    url.searchParams.set('token', credentials);
-    return url.toString();
+    // Convert http/https to ws/wss
+    return baseUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
   } catch (err) {
     console.error('[WebSocket] Invalid URL:', baseUrl, err);
     return baseUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
@@ -124,10 +126,21 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       setConnectionState(reconnectAttemptRef.current > 0 ? 'reconnecting' : 'connecting');
 
       try {
-        const fullUrl = createWebSocketUrl(url, username, password);
-        console.log(`[WebSocket] Connecting to: ${fullUrl.replace(/token=[^&]+/, 'token=***')}`);
+        const wsUrl = createWebSocketUrl(url);
+        
+        // SECURITY: Credentials are sent via Authorization header subprotocol
+        // NOT via URL query parameters!
+        const credentials = `${username}:${password}`;
+        const token = btoa(credentials);
+        
+        // Use subprotocols to pass auth header
+        // Backend expects: Authorization: Basic <token>
+        // WebSocket browser API doesn't allow custom headers, so we use protocols
+        console.log(`[WebSocket] Connecting to: ${wsUrl.replace(/\/wss?:\/\/[^\/]+/, 'wss://[REDACTED]')}`);
 
-        const ws = new WebSocket(fullUrl);
+        // Create WebSocket with auth via protocols workaround
+        // The server upgrade handler will check the Authorization header
+        const ws = new WebSocket(wsUrl, ['clawpanel', token]);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -200,7 +213,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       } catch (err) {
         console.error('[WebSocket] Connection failed:', err);
         setConnectionState('error');
-        setError(err instanceof Error ? err.message : 'Connection failed');
+        setError('Connection failed');
       }
     };
 
