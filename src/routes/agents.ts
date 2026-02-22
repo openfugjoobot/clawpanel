@@ -22,7 +22,7 @@ router.get('/', async (req, res, next) => {
  */
 router.post('/:id/spawn', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { task } = req.body;
     
     if (!task) {
@@ -42,7 +42,7 @@ router.post('/:id/spawn', async (req, res, next) => {
  */
 router.post('/:id/kill', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await killAgent(id);
     res.json({ message: `Agent ${id} sessions killed successfully` });
   } catch (error) {

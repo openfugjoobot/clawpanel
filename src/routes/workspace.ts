@@ -7,6 +7,18 @@ const WORKSPACE_PATH = process.env.OPENCLAW_WORKSPACE || '/home/ubuntu/.openclaw
 
 const router = Router();
 
+// Validation helpers
+const isValidPathName = (name: string): boolean => {
+  // Allow: alphanumeric, underscores, hyphens, dots, forward slashes
+  // Block: .. (parent directory), control characters, and shell metacharacters
+  if (!name || typeof name !== 'string') return false;
+  if (name.length > 4096) return false; // Max path length
+  if (name.includes('..')) return false; // Block directory traversal
+  if (/[<>"|?*\x00-\x1f]/.test(name)) return false; // Block special chars
+  if (/^[\/]/.test(name)) return false; // Block absolute paths
+  return true;
+};
+
 /**
  * GET /api/workspace?path=/
  * Read directory contents and return file listing
@@ -49,7 +61,8 @@ router.get('/workspace', (req: Request, res: Response) => {
     
     res.json({ files });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to read directory', message: error.message });
+    console.error('Error reading directory:', error);
+    res.status(500).json({ error: 'Failed to read directory' });
   }
 });
 
@@ -57,10 +70,12 @@ router.get('/workspace', (req: Request, res: Response) => {
  * GET /api/files/:path
  * Read file content
  */
-router.get('/files/:path', (req: Request, res: Response) => {
+router.get('/files/:path(^*)', (req: Request, res: Response) => {
   try {
-    // Extract path from URL params
+    // Extract path from URL params - express captures the full path
     const relativePath = Array.isArray(req.params.path) ? req.params.path.join('/') : req.params.path;
+    
+    console.log('DEBUG: file path =', relativePath);
     
     // Resolve to absolute path and prevent path traversal
     const resolvedPath = resolveWorkspacePath(relativePath);
@@ -78,11 +93,19 @@ router.get('/files/:path', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Path is not a file' });
     }
     
+    // Check file size to prevent reading huge files
+    const stats = fs.statSync(resolvedPath);
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+    if (stats.size > MAX_FILE_SIZE) {
+      return res.status(413).json({ error: 'File too large' });
+    }
+    
     // Read file content
     const content = fs.readFileSync(resolvedPath, 'utf8');
     res.json({ content });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to read file', message: error.message });
+    console.error('Error reading file:', error);
+    res.status(500).json({ error: 'Failed to read file' });
   }
 });
 
@@ -90,15 +113,33 @@ router.get('/files/:path', (req: Request, res: Response) => {
  * POST /api/files/:path
  * Write file content (with backup)
  */
-router.post('/files/:path', (req: Request, res: Response) => {
+router.post('/files/:path(^*)', (req: Request, res: Response) => {
   try {
     // Extract path from URL params
     const relativePath = Array.isArray(req.params.path) ? req.params.path.join('/') : req.params.path;
+    
+    console.log('DEBUG: write path =', relativePath);
     
     // Resolve to absolute path and prevent path traversal
     const resolvedPath = resolveWorkspacePath(relativePath);
     if (!resolvedPath) {
       return res.status(400).json({ error: 'Invalid path' });
+    }
+    
+    // Validate content
+    const content = req.body.content;
+    if (content === undefined) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+    
+    if (typeof content !== 'string') {
+      return res.status(400).json({ error: 'Content must be a string' });
+    }
+    
+    // Limit content size
+    const MAX_CONTENT_SIZE = 50 * 1024 * 1024; // 50MB
+    if (Buffer.byteLength(content, 'utf8') > MAX_CONTENT_SIZE) {
+      return res.status(413).json({ error: 'Content too large' });
     }
     
     // Ensure parent directory exists
@@ -114,12 +155,12 @@ router.post('/files/:path', (req: Request, res: Response) => {
     }
     
     // Write new content
-    const content = req.body.content || '';
     fs.writeFileSync(resolvedPath, content);
     
     res.json({ message: 'File saved successfully' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to save file', message: error.message });
+    console.error('Error writing file:', error);
+    res.status(500).json({ error: 'Failed to save file' });
   }
 });
 
@@ -131,6 +172,12 @@ function resolveWorkspacePath(relativePath: string): string | null {
   try {
     console.log('DEBUG: WORKSPACE_PATH =', WORKSPACE_PATH);
     
+    // Validate the relative path
+    if (!isValidPathName(relativePath)) {
+      console.error('DEBUG: Path validation failed for:', relativePath);
+      return null;
+    }
+    
     // Normalize and resolve the path
     const normalizedPath = path.normalize(relativePath);
     console.log('DEBUG: normalizedPath =', normalizedPath);
@@ -139,16 +186,32 @@ function resolveWorkspacePath(relativePath: string): string | null {
     const fullPath = path.resolve(WORKSPACE_PATH, normalizedPath);
     console.log('DEBUG: fullPath =', fullPath);
     
-    // Check if the resolved path is still within the workspace
-    const workspacePathResolved = path.resolve(WORKSPACE_PATH);
-    console.log('DEBUG: workspacePathResolved =', workspacePathResolved);
-    console.log('DEBUG: fullPath.startsWith(workspacePathResolved) =', fullPath.startsWith(workspacePathResolved));
-    
-    if (!fullPath.startsWith(workspacePathResolved)) {
-      return null; // Path traversal detected
+    // Resolve real paths with symlinks
+    let realFullPath: string;
+    try {
+      realFullPath = fs.realpathSync(fullPath);
+    } catch {
+      // If file doesn't exist, get the real path of the workspace
+      const realWorkspace = fs.realpathSync(WORKSPACE_PATH);
+      realFullPath = path.resolve(realWorkspace, normalizedPath);
     }
     
-    return fullPath;
+    // Get the real workspace path
+    const realWorkspacePath = fs.realpathSync(WORKSPACE_PATH);
+    console.log('DEBUG: realWorkspacePath =', realWorkspacePath);
+    console.log('DEBUG: realFullPath =', realFullPath);
+    
+    // Check if the resolved path is still within the workspace
+    // Use path.sep to ensure proper cross-platform comparison
+    const normalizedFullPath = path.normalize(realFullPath + path.sep);
+    const normalizedWorkspace = path.normalize(realWorkspacePath + path.sep);
+    
+    if (!normalizedFullPath.startsWith(normalizedWorkspace)) {
+      console.error('DEBUG: Path traversal detected - path escapes workspace');
+      return null;
+    }
+    
+    return realFullPath;
   } catch (error) {
     console.error('DEBUG: Error in resolveWorkspacePath:', error);
     return null;
