@@ -8,12 +8,14 @@
 import React, { createContext, useContext, useCallback, useState, useRef, useEffect } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import type { 
-  WebSocketEvent, 
-  SessionCreatedPayload, 
-  SessionKilledPayload, 
-  AgentStatusPayload,
-  CronExecutedPayload,
-  GatewayStatusPayload 
+  WebSocketEvent
+} from '../websocket/types';
+import { 
+  isSessionCreatedPayload, 
+  isSessionKilledPayload, 
+  isAgentStatusPayload,
+  isCronExecutedPayload,
+  isGatewayStatusPayload 
 } from '../websocket/types';
 import type { Session, Agent, CronJob, GatewayStatus } from '../types';
 
@@ -136,7 +138,11 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
     
     switch (event.type) {
       case 'session.created': {
-        const payload = event.payload as SessionCreatedPayload;
+        if (!isSessionCreatedPayload(event.payload)) {
+          console.warn('[DashboardContext] Invalid session.created payload');
+          break;
+        }
+        const payload = event.payload;
         setSessions(prev => {
           // Check if session already exists (avoid duplicates)
           if (prev.some(s => s.key === payload.sessionKey)) {
@@ -157,14 +163,22 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
       }
       
       case 'session.killed': {
-        const payload = event.payload as SessionKilledPayload;
+        if (!isSessionKilledPayload(event.payload)) {
+          console.warn('[DashboardContext] Invalid session.killed payload');
+          break;
+        }
+        const payload = event.payload;
         setSessions(prev => prev.filter(s => s.key !== payload.sessionKey));
         triggerPulse('sessions');
         break;
       }
       
       case 'agent.status': {
-        const payload = event.payload as AgentStatusPayload;
+        if (!isAgentStatusPayload(event.payload)) {
+          console.warn('[DashboardContext] Invalid agent.status payload');
+          break;
+        }
+        const payload = event.payload;
         setAgents(prev => prev.map(a => 
           a.id === payload.agentId 
             ? { 
@@ -179,7 +193,11 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
       }
       
       case 'cron.executed': {
-        const payload = event.payload as CronExecutedPayload;
+        if (!isCronExecutedPayload(event.payload)) {
+          console.warn('[DashboardContext] Invalid cron.executed payload');
+          break;
+        }
+        const payload = event.payload;
         setCronJobs(prev => prev.map(job => 
           job.id === payload.jobId 
             ? { 
@@ -194,7 +212,11 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
       }
       
       case 'gateway.status': {
-        const payload = event.payload as GatewayStatusPayload;
+        if (!isGatewayStatusPayload(event.payload)) {
+          console.warn('[DashboardContext] Invalid gateway.status payload');
+          break;
+        }
+        const payload = event.payload;
         setGatewayStatus({
           status: payload.status === 'running' ? 'online' : 
                   payload.status === 'error' ? 'error' : 'offline',

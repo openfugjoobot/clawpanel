@@ -37,12 +37,13 @@ export function createWebSocketServer(options: WebSocketServerOptions): WebSocke
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const extendedWs = ws as ExtendedWebSocket;
     const userId = (req as any).userId || 'unknown';
-    const clientIp = req.socket.remoteAddress;
+    const clientIp = req.socket.remoteAddress || 'unknown';
 
     // Initialize extended properties
     // Note: isAuthenticated is set based on verifyClient having passed
     extendedWs.isAuthenticated = true;
     extendedWs.userId = userId;
+    extendedWs.clientIp = clientIp;
     extendedWs.connectionTime = new Date();
     extendedWs.lastPing = new Date();
 

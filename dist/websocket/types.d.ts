@@ -7,6 +7,7 @@ import { IncomingMessage } from 'http';
 export interface ExtendedWebSocket extends WebSocket {
     isAuthenticated: boolean;
     userId: string;
+    clientIp: string;
     connectionTime: Date;
     lastPing: Date;
 }

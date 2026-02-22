@@ -22,11 +22,12 @@ function createWebSocketServer(options) {
     wss.on('connection', (ws, req) => {
         const extendedWs = ws;
         const userId = req.userId || 'unknown';
-        const clientIp = req.socket.remoteAddress;
+        const clientIp = req.socket.remoteAddress || 'unknown';
         // Initialize extended properties
         // Note: isAuthenticated is set based on verifyClient having passed
         extendedWs.isAuthenticated = true;
         extendedWs.userId = userId;
+        extendedWs.clientIp = clientIp;
         extendedWs.connectionTime = new Date();
         extendedWs.lastPing = new Date();
         // Add to connection manager

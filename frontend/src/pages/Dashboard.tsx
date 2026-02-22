@@ -494,7 +494,7 @@ export const Dashboard: React.FC = () => {
     return 'wss://clawserver.fugjoo.duckdns.org/ws';
   }, []);
 
-  // WebSocket credentials - decode stored credentials or use defaults
+  // WebSocket credentials - decode stored credentials
   const wsCredentials = useMemo(() => {
     if (credentials) {
       try {
@@ -504,11 +504,12 @@ export const Dashboard: React.FC = () => {
           return { username, password };
         }
       } catch {
-        // Fall through to defaults
+        // Invalid credentials format
+        console.warn('[Dashboard] Failed to decode stored credentials');
       }
     }
-    // Fallback to default credentials
-    return { username: 'admin', password: 'changeme' };
+    // No credentials available - return empty (will show connection error)
+    return { username: '', password: '' };
   }, [credentials]);
 
   return (

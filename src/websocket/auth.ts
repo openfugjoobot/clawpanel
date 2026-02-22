@@ -1,6 +1,7 @@
 import { IncomingMessage } from 'http';
 import { ClientInfo, VerifyClientCallback } from './types';
 import * as url from 'url';
+import { connectionManager } from './manager';
 
 /**
  * Extract Basic Auth credentials from HTTP headers or URL query params
@@ -85,8 +86,23 @@ export function verifyClient(
     'https://localhost:3001',
   ];
   
-  // Log origin for debugging
+  // Validate origin (CSRF protection)
   console.log(`[WebSocket] Connection attempt from origin: ${origin || 'unknown'}`);
+  
+  if (origin && !allowedOrigins.includes(origin)) {
+    console.warn(`[WebSocket] Connection rejected: Origin '${origin}' not allowed`);
+    cb(false, 403, 'Forbidden: Origin not allowed');
+    return;
+  }
+
+  // Check connection limits (DoS protection)
+  const clientIp = req.socket.remoteAddress || 'unknown';
+  const connectionCheck = connectionManager.canAcceptConnection(clientIp);
+  if (!connectionCheck.allowed) {
+    console.warn(`[WebSocket] Connection rejected from ${clientIp}: ${connectionCheck.reason}`);
+    cb(false, 429, `Too Many Connections: ${connectionCheck.reason}`);
+    return;
+  }
 
   // Extract Basic Auth credentials
   const credentials = extractBasicAuth(req);
@@ -111,26 +127,6 @@ export function verifyClient(
   cb(true);
 }
 
-  /* Original auth code:
-  const credentials = extractBasicAuth(req);
-
-  if (!credentials) {
-    console.warn('[WebSocket] Connection rejected: No valid Authorization header');
-    cb(false, 401, 'Unauthorized: Basic Auth required');
-    return;
-  }
-
-  if (!validateCredentials(credentials.username, credentials.password)) {
-    console.warn(`[WebSocket] Connection rejected: Invalid credentials for user "${credentials.username}"`);
-    cb(false, 403, 'Forbidden: Invalid credentials');
-    return;
-  }
-
-  (req as any).userId = credentials.username;
-  console.log(`[WebSocket] Connection accepted for user: ${credentials.username}`);
-  cb(true);
-}
-
 /**
  * Sync version of verifyClient for ws library compatibility
  * This is used when the ws library expects a synchronous return
@@ -139,7 +135,20 @@ export function verifyClient(
  * @returns true if client should be accepted, false otherwise
  */
 export function verifyClientSync(info: ClientInfo): boolean {
-  const { req } = info;
+  const { req, origin } = info;
+
+  // Check origin
+  const allowedOrigins = [
+    'https://clawpanel.fugjoo.duckdns.org',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://localhost:3000',
+    'https://localhost:3001',
+  ];
+
+  if (origin && !allowedOrigins.includes(origin)) {
+    return false;
+  }
 
   const credentials = extractBasicAuth(req);
   if (!credentials) {

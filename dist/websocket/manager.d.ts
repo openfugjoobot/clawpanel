@@ -6,15 +6,24 @@ import { ExtendedWebSocket, WebSocketEvent } from './types';
  * - Track connected clients
  * - Broadcast events to all connected clients
  * - Provide connection statistics
+ * - Enforce connection limits (DoS protection)
  */
 export declare class ConnectionManager {
     private clients;
+    private ipConnectionCounts;
     private static instance;
     private constructor();
     /**
      * Get the singleton instance of ConnectionManager
      */
     static getInstance(): ConnectionManager;
+    /**
+     * Check if a new connection from this IP would exceed limits
+     */
+    canAcceptConnection(clientIp: string): {
+        allowed: boolean;
+        reason?: string;
+    };
     /**
      * Add a client to the connection pool
      */

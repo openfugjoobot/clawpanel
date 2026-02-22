@@ -1,15 +1,23 @@
 import { ExtendedWebSocket, WebSocketEvent } from './types';
 
 /**
+ * Connection limits for security
+ */
+const MAX_CONNECTIONS_TOTAL = 100;
+const MAX_CONNECTIONS_PER_IP = 5;
+
+/**
  * ConnectionManager - Manages WebSocket client connections
  * 
  * Responsibilities:
  * - Track connected clients
  * - Broadcast events to all connected clients
  * - Provide connection statistics
+ * - Enforce connection limits (DoS protection)
  */
 export class ConnectionManager {
   private clients: Set<ExtendedWebSocket> = new Set();
+  private ipConnectionCounts: Map<string, number> = new Map();
   private static instance: ConnectionManager;
 
   private constructor() {}
@@ -25,19 +33,55 @@ export class ConnectionManager {
   }
 
   /**
+   * Check if a new connection from this IP would exceed limits
+   */
+  public canAcceptConnection(clientIp: string): { allowed: boolean; reason?: string } {
+    // Check total connections
+    if (this.clients.size >= MAX_CONNECTIONS_TOTAL) {
+      return { allowed: false, reason: 'Maximum total connections reached' };
+    }
+
+    // Check per-IP limit
+    const ipCount = this.ipConnectionCounts.get(clientIp) || 0;
+    if (ipCount >= MAX_CONNECTIONS_PER_IP) {
+      return { allowed: false, reason: `Maximum ${MAX_CONNECTIONS_PER_IP} connections per IP` };
+    }
+
+    return { allowed: true };
+  }
+
+  /**
    * Add a client to the connection pool
    */
   public add(ws: ExtendedWebSocket): void {
+    const clientIp = ws.clientIp || 'unknown';
+    
     this.clients.add(ws);
-    console.log(`[WebSocket] Client connected. Total connections: ${this.getCount()}`);
+    
+    // Track IP connection count
+    const currentCount = this.ipConnectionCounts.get(clientIp) || 0;
+    this.ipConnectionCounts.set(clientIp, currentCount + 1);
+    
+    console.log(`[WebSocket] Client connected from ${clientIp}. Total: ${this.getCount()}, IP: ${currentCount + 1}`);
   }
 
   /**
    * Remove a client from the connection pool
    */
   public remove(ws: ExtendedWebSocket): void {
+    const clientIp = ws.clientIp || 'unknown';
+    
     this.clients.delete(ws);
-    console.log(`[WebSocket] Client disconnected. Total connections: ${this.getCount()}`);
+    
+    // Update IP connection count
+    const currentCount = this.ipConnectionCounts.get(clientIp) || 0;
+    if (currentCount <= 1) {
+      this.ipConnectionCounts.delete(clientIp);
+    } else {
+      this.ipConnectionCounts.set(clientIp, currentCount - 1);
+    }
+    
+    console.log(`[WebSocket] Client disconnected from ${clientIp}. Total: ${this.getCount()}`);
   }
 
   /**
