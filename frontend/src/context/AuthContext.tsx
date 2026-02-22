@@ -6,6 +6,7 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 interface AuthState {
   user: string | null;
   token: string | null;
+  credentials: string | null; // Base64 encoded username:password for WebSocket
 }
 
 interface AuthContextType extends AuthState {
@@ -26,6 +27,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [auth, setAuth] = useState<AuthState>({
     user: null,
     token: null,
+    credentials: null,
   });
 
   // Load auth from localStorage on mount
@@ -37,6 +39,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setAuth({
           user: parsed.user || null,
           token: parsed.token || null,
+          credentials: parsed.credentials || null,
         });
       } catch {
         localStorage.removeItem(STORAGE_KEY);
@@ -56,11 +59,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Create Basic Auth token
     const credentials = `${username}:${password}`;
     const token = 'Basic ' + btoa(credentials);
+    const encodedCredentials = btoa(credentials); // For WebSocket
 
     // Save to state and localStorage
     const authData: AuthState = {
       user: username,
       token,
+      credentials: encodedCredentials,
     };
 
     setAuth(authData);
@@ -75,6 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuth({
       user: null,
       token: null,
+      credentials: null,
     });
     localStorage.removeItem(STORAGE_KEY);
   };

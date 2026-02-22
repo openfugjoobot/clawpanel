@@ -486,30 +486,30 @@ const fetchInitialData = async (): Promise<{
 export const Dashboard: React.FC = () => {
   const { user: _user } = useAuth();
 
+  // WebSocket credentials from auth context
+  const { credentials } = useAuth();
+  
   // WebSocket URL - use dedicated subdomain with valid SSL cert
   const wsUrl = useMemo(() => {
     return 'wss://clawserver.fugjoo.duckdns.org/ws';
   }, []);
 
-  // WebSocket credentials from localStorage or environment
+  // WebSocket credentials - decode stored credentials or use defaults
   const wsCredentials = useMemo(() => {
-    try {
-      const stored = localStorage.getItem('clawpanel_auth');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          username: parsed.username || 'admin',
-          password: parsed.password || '',
-        };
+    if (credentials) {
+      try {
+        const decoded = atob(credentials);
+        const [username, password] = decoded.split(':');
+        if (username && password) {
+          return { username, password };
+        }
+      } catch {
+        // Fall through to defaults
       }
-    } catch {
-      // Ignore parse errors
     }
-    return {
-      username: 'admin',
-      password: '',
-    };
-  }, []);
+    // Fallback to default credentials
+    return { username: 'admin', password: 'changeme' };
+  }, [credentials]);
 
   return (
     <DashboardProvider
