@@ -4,6 +4,12 @@ import { broadcastSessionKilled, broadcastAgentStatus } from '../websocket/broad
 
 const router = Router();
 
+// Validation helper
+const isValidSessionKey = (key: string): boolean => {
+  // Session keys should be alphanumeric with specific delimiters
+  return /^[a-zA-Z0-9:]+$/.test(key) && key.length >= 1 && key.length <= 256;
+};
+
 /**
  * GET /api/sessions
  * Get all active sessions
@@ -14,8 +20,7 @@ router.get('/', async (req: Request, res: Response) => {
     res.json(sessions);
   } catch (error: any) {
     res.status(500).json({ 
-      error: 'Failed to fetch sessions',
-      message: error.message 
+      error: 'Failed to fetch sessions'
     });
   }
 });
@@ -26,13 +31,15 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.post('/:key/kill', async (req: Request, res: Response) => {
   try {
-    const key = req.params.key;
-    if (typeof key !== 'string') {
+    const key = Array.isArray(req.params.key) ? req.params.key[0] : req.params.key;
+    
+    // Validate session key format
+    if (!isValidSessionKey(key)) {
       return res.status(400).json({ 
-        error: 'Invalid session key',
-        message: 'Session key must be a string' 
+        error: 'Invalid session key format'
       });
     }
+    
     const result = await killSession(key);
     
     // Extract agent ID from session key (format: agent:<agentId>:<timestamp>)
@@ -49,8 +56,7 @@ router.post('/:key/kill', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ 
-      error: 'Failed to kill session',
-      message: error.message 
+      error: 'Failed to kill session'
     });
   }
 });

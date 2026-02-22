@@ -4,6 +4,12 @@ import { broadcastSessionCreated, broadcastSessionKilled, broadcastAgentStatus }
 
 const router = express.Router();
 
+// Validation helper
+const isValidAgentId = (id: string): boolean => {
+  // Agent IDs should be alphanumeric with hyphens/underscores
+  return /^[a-zA-Z0-9_-]+$/.test(id) && id.length >= 1 && id.length <= 64;
+};
+
 /**
  * GET /api/agents
  * List all agents
@@ -23,11 +29,16 @@ router.get('/', async (req, res, next) => {
  */
 router.post('/:id/spawn', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { task, label } = req.body;
     
-    if (!task) {
-      return res.status(400).json({ error: 'Task is required' });
+    // Validate agent ID
+    if (!isValidAgentId(id)) {
+      return res.status(400).json({ error: 'Invalid agent ID format' });
+    }
+    
+    if (!task || typeof task !== 'string') {
+      return res.status(400).json({ error: 'Task is required and must be a string' });
     }
     
     const result = await spawnAgent(id, task);
@@ -55,7 +66,13 @@ router.post('/:id/spawn', async (req, res, next) => {
  */
 router.post('/:id/kill', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    
+    // Validate agent ID
+    if (!isValidAgentId(id)) {
+      return res.status(400).json({ error: 'Invalid agent ID format' });
+    }
+    
     await killAgent(id);
     
     // Broadcast agent status update (sessions killed)
