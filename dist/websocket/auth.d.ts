@@ -9,12 +9,5 @@ import { ClientInfo, VerifyClientCallback } from './types';
  * @param cb - Callback function to accept (true) or reject (false) the connection
  */
 export declare function verifyClient(info: ClientInfo, cb: VerifyClientCallback): void;
-/**
- * Sync version of verifyClient for ws library compatibility
- * This is used when the ws library expects a synchronous return
- *
- * @param info - Client info containing origin and request
- * @returns true if client should be accepted, false otherwise
- */
 export declare function verifyClientSync(info: ClientInfo): boolean;
 //# sourceMappingURL=auth.d.ts.map

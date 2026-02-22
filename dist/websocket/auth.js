@@ -108,38 +108,51 @@ function verifyClient(info, cb) {
     ];
     // Log origin for debugging
     console.log(`[WebSocket] Connection attempt from origin: ${origin || 'unknown'}`);
-    // TEMP: Auth disabled for testing - always accept
-    console.log('[WebSocket] Temp: Auth disabled, accepting connection');
-    req.userId = 'admin';
-    cb(true);
-    return;
-    /* Original auth code:
+    // Extract Basic Auth credentials
     const credentials = extractBasicAuth(req);
-  
     if (!credentials) {
-      console.warn('[WebSocket] Connection rejected: No valid Authorization header');
-      cb(false, 401, 'Unauthorized: Basic Auth required');
-      return;
+        console.warn('[WebSocket] Connection rejected: No valid Authorization header or token');
+        cb(false, 401, 'Unauthorized: Basic Auth required');
+        return;
     }
-  
+    // Validate credentials
     if (!validateCredentials(credentials.username, credentials.password)) {
-      console.warn(`[WebSocket] Connection rejected: Invalid credentials for user "${credentials.username}"`);
-      cb(false, 403, 'Forbidden: Invalid credentials');
-      return;
+        console.warn(`[WebSocket] Connection rejected: Invalid credentials for user "${credentials.username}"`);
+        cb(false, 403, 'Forbidden: Invalid credentials');
+        return;
     }
-  
-    (req as any).userId = credentials.username;
+    // Store user info on the request for later use
+    req.userId = credentials.username;
     console.log(`[WebSocket] Connection accepted for user: ${credentials.username}`);
     cb(true);
-    */
 }
+/* Original auth code:
+const credentials = extractBasicAuth(req);
+
+if (!credentials) {
+  console.warn('[WebSocket] Connection rejected: No valid Authorization header');
+  cb(false, 401, 'Unauthorized: Basic Auth required');
+  return;
+}
+
+if (!validateCredentials(credentials.username, credentials.password)) {
+  console.warn(`[WebSocket] Connection rejected: Invalid credentials for user "${credentials.username}"`);
+  cb(false, 403, 'Forbidden: Invalid credentials');
+  return;
+}
+
+(req as any).userId = credentials.username;
+console.log(`[WebSocket] Connection accepted for user: ${credentials.username}`);
+cb(true);
+}
+
 /**
- * Sync version of verifyClient for ws library compatibility
- * This is used when the ws library expects a synchronous return
- *
- * @param info - Client info containing origin and request
- * @returns true if client should be accepted, false otherwise
- */
+* Sync version of verifyClient for ws library compatibility
+* This is used when the ws library expects a synchronous return
+*
+* @param info - Client info containing origin and request
+* @returns true if client should be accepted, false otherwise
+*/
 function verifyClientSync(info) {
     const { req } = info;
     const credentials = extractBasicAuth(req);

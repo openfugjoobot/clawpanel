@@ -87,12 +87,29 @@ export function verifyClient(
   
   // Log origin for debugging
   console.log(`[WebSocket] Connection attempt from origin: ${origin || 'unknown'}`);
+
+  // Extract Basic Auth credentials
+  const credentials = extractBasicAuth(req);
+
+  if (!credentials) {
+    console.warn('[WebSocket] Connection rejected: No valid Authorization header or token');
+    cb(false, 401, 'Unauthorized: Basic Auth required');
+    return;
+  }
+
+  // Validate credentials
+  if (!validateCredentials(credentials.username, credentials.password)) {
+    console.warn(`[WebSocket] Connection rejected: Invalid credentials for user "${credentials.username}"`);
+    cb(false, 403, 'Forbidden: Invalid credentials');
+    return;
+  }
+
+  // Store user info on the request for later use
+  (req as any).userId = credentials.username;
   
-  // TEMP: Auth disabled for testing - always accept
-  console.log('[WebSocket] Temp: Auth disabled, accepting connection');
-  (req as any).userId = 'admin';
+  console.log(`[WebSocket] Connection accepted for user: ${credentials.username}`);
   cb(true);
-  return;
+}
 
   /* Original auth code:
   const credentials = extractBasicAuth(req);
@@ -112,7 +129,6 @@ export function verifyClient(
   (req as any).userId = credentials.username;
   console.log(`[WebSocket] Connection accepted for user: ${credentials.username}`);
   cb(true);
-  */
 }
 
 /**
